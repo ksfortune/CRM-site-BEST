@@ -1,6 +1,12 @@
 # здесь будет валидация данных, которые будут приходить с фронтенда.
 # хз стоит ли на БД саму писать всякие чеккеры и триггеры, мб всё здесь в коде проверять будем
 import re
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
 
 
 @staticmethod
@@ -45,3 +51,17 @@ def validate_phone(phone): # номер телефона
         raise ValueError("некорректный формат телефона")
 
     return phone
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(
+        plain_password: str,
+        hashed_password: str
+) -> bool:
+    return pwd_context.verify(
+        plain_password,
+        hashed_password
+    )
