@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: CRM BEST
+  description: Контракты для фронта и бэка
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный сервер разработки
+
+paths:
+  /auth/login:
+    post:
+      summary: Вход в систему
+      description: Аутентификация по email и паролю, возвращает JWT-токен
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "ivan@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "password33"
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "YaLuBLuIgRatV33..."
+                    description: JWT-токен для доступа к защищенным эндпоинтам
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ivan@example.com"
+          description: Почта пользователя (логин)
+        name:
+          type: string
+          example: "Иван Фролов"
+          description: Имя пользователя
+        role:
+          type: string
+          example: "user"
+          description: Роль пользователя
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 401
+          description: Код ошибки
+        message:
+          type: string
+          example: "Неверный email или пароль"
+          description: Текст ошибки
