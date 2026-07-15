@@ -1,130 +1,120 @@
-import sqlalchemy
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Date, Integer, Text, Boolean, ForeignKey, select
-import psycopg2
+from psycopg2 import connect, errors, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
 from models import Base, User, Role
-from validation import hash_password
+from validation import Validator
 
 
 class Database:
-    def __init__(self, db_name, user, password):
-        # Создаём временное подключение к postgres
-        connection = psycopg2.connect(user=user, password=password)
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)  # без автокоммита нельзя создавать БД, т.к. открыта одна транзакция
 
-        # Создаём БД, если ещё не создана
+    def __init__(self, db_name: str, user: str, password: str):
+
+        connection = connect(user=user, password=password)
+        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = connection.cursor()
+
         try:
-            cursor.execute('create database ' + db_name)
-        except psycopg2.errors.DuplicateDatabase:  # база данных уже создана
+            cursor.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
+        except errors.DuplicateDatabase:
             pass
-        finally:  # гарантированно закрываем временное подключение
+
+        finally:
             cursor.close()
             connection.close()
 
-        # Создаём движок и подключение
-        # дефолтные параметры: echo=False, pool_size=5, max_overflow=10, encoding='UTF-8'
-        connection_link = "postgresql+psycopg2://" + user + ":" + password + "@localhost/" + db_name
-        engine = create_engine(connection_link)
-        Base.metadata.create_all(engine)
-        self.engine = engine
+        connection_link = f"postgresql+psycopg2://{user}:{password}@localhost/{db_name}"
+        self.engine = create_engine(connection_link,pool_pre_ping=True)
+        Base.metadata.create_all(self.engine)
 
     #создать нового пользователя
-    def create_user(self, email, password, name, surname):
-        session = Session(self.engine)
-        try:
-            user = session.query(User).filter(User.email == email).first()
-            if user:
-                raise ValueError(
-                    "пользователь уже существует"
+    def create_user(self, email: str, password: str, name: str, surname: str) -> User:
+        with Session(self.engine) as session:
+            try:
+                stmt = select(User).where(User.email == email)
+                if session.scalar(stmt):
+                    raise ValueError("Почта недоступна.")
+
+                new_user = User(
+                    email=email,
+                    password_hash=Validator.hash_password(password),
+                    name=name,
+                    surname=surname,
+                    role_id=1
                 )
 
-            new_user = User(
-                email=email,
-                password_hash=hash_password(password),
-                name=name,
-                surname=surname,
-                phone='',
-                role_id=1,
-                is_active=True,
-                comment=''
-            )
+                session.add(new_user)
+                session.commit()
+                session.refresh(new_user)
 
-            session.add(new_user)
-            session.commit()
-            return new_user
-        finally:
-            session.close()
+                return new_user
 
+            except Exception:
+                session.rollback()
+                raise
 
     # изменение данных пользователя
-    def update_user_field(self, email, **kwargs):
-        session = Session(self.engine)
+    def update_user_field(self, email: str, **kwargs) -> User:
+        allowed_fields = {"name", "surname", "phone", "comment", "is_active", "role_id"}
 
-        try:
-            user = session.query(User).filter(User.email == email).first()
-            if not user:
-                raise ValueError("пользователь не найден")
+        with Session(self.engine) as session:
+            try:
+                stmt = select(User).where(User.email == email)
+                user = session.scalar(stmt)
 
-            for field, value in kwargs.items():
-                setattr(user, field, value)
-            session.commit()
+                if user is None:
+                    raise ValueError("Пользователь не найден.")
 
-        finally:
-            session.close()
+                for field, value in kwargs.items():
 
+                    if field not in allowed_fields:
+                        raise ValueError(
+                            f"Поле '{field}' нельзя изменить."
+                        )
 
-    # вернуть пользователя
-    def get_user(self, email):
-        session = Session(self.engine)
+                    setattr(user, field, value)
 
-        try:
-            user = session.query(User).filter(User.email == email).first()
-            if not user:
-                raise ValueError("пользователь не найден")
-            return user
+                session.commit()
+                session.refresh(user)
 
-        finally:
-            session.close()
+                return user
 
+            except Exception:
+                session.rollback()
+                raise
 
-    # вернуть всех пользователей
-    def get_all_users(self):
-        session = Session(self.engine)
+    #взять юзера по имейлу
+    def get_user(self, email: str) -> User | None:
 
-        try:
-            return session.query(User).all()
-
-        finally:
-            session.close()
+        with Session(self.engine) as session:
+            stmt = select(User).where(User.email == email)
+            return session.scalar(stmt)
 
 
-    # список админов
-    def get_all_admins(self):
-        session = Session(self.engine)
+    def get_all_users(self) -> list[User]:
+        with Session(self.engine) as session:
 
-        try:
-            return session.query(User).join(Role).filter(Role.role_name == "admin").all()
-
-        finally:
-            session.close()
+            stmt = select(User)
+            return list(session.scalars(stmt).all())
 
 
-    # все не админы
-    def get_all_not_admins(self):
-        session = Session(self.engine)
+    def get_all_admins(self) -> list[User]:
 
-        try:
-            return session.query(User).join(Role).filter(Role.role_name != "admin").all()
+        with Session(self.engine) as session:
 
-        finally:
-            session.close()
+            stmt = select(User).join(Role).where(Role.role_name == "admin")
+            return list(session.scalars(stmt).all())
 
 
-    # Дальше добавляем всякие методы уже для БД
-    def add_company(self):
-        pass
+    def get_all_not_admins(self) -> list[User]:
 
-    def add_contact_to_company(self):
-        pass
+        with Session(self.engine) as session:
+
+            stmt = select(User).join(Role).where(Role.role_name != "admin")
+
+            return list(
+                session.scalars(stmt).all()
+            )
+
