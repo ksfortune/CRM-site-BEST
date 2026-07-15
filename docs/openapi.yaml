@@ -52,6 +52,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /companies:
+    get:
+      summary: Получить список всех компаний
+      description: Возвращает массив компаний
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Company'
+        '401':
+          description: Неавторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Добавить новую компанию
+      description: Создает новую компанию в БД
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyInput'
+      responses:
+        '201':
+          description: Компания создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Неавторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     User:
@@ -82,3 +131,62 @@ components:
           type: string
           example: "Неверный email или пароль"
           description: Текст ошибки
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: ID компании
+        name:
+          type: string
+          example: "ООО Тлиз"
+          description: Название компании
+        status:
+          type: string
+          example: "Горячая"
+          description: Статус компании (тёплая/горячая)
+        spheres:
+          type: array
+          items:
+            type: string
+          example: ["Еда", "Напитки"]
+          description: Сферы деятельности компании
+        availability:
+          type: string
+          example: "Ксен Бальб"
+          description: "Кем занята компания (или Свободна)"
+
+    CompanyInput:
+      type: object
+      required:
+        - name
+        - sphere
+        - status
+      properties:
+        name:
+          type: string
+          example: "ООО Тлиз"
+          description: Название компании
+        sphere:
+          type: string
+          example: "Еда"
+          description: Сфера деятельности
+        status:
+          type: string
+          example: "Теплая"
+          description: Статус компании
+        contact_name:
+          type: string
+          example: "Иван Фролов"
+          description: Имя представителя (опционально)
+        contact_phone:
+          type: string
+          example: "+7 999 228-52-33"
+          description: Телефон представителя (опционально)
+        contact_email:
+          type: string
+          format: email
+          example: "ivan@example.com"
+          description: Почта представителя (опционально)
