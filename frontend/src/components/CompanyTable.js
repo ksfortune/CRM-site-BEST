@@ -1,82 +1,87 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import CommentSection from './CommentSection';
 
-export default function CompanyTable({ companies, onRefresh }) {
-  const { currentUser } = useAuth();
-  const { occupyCompany, releaseCompany, requestCompanyChange, directCompanyUpdate, getCommentsForCompany } = useData();
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
-
-  const handleOccupy = (company) => {
-    if (company.occupiedBy && company.occupiedBy !== currentUser.id) return alert(`Занято пользователем ${company.occupiedByName}`);
-    if (company.occupiedBy === currentUser.id) releaseCompany(company.id);
-    else occupyCompany(company.id, currentUser.id, `${currentUser.firstName} ${currentUser.lastName}`);
-    onRefresh();
-  };
-
-  const handleEdit = (company) => {
-    if (currentUser.role === 'admin') {
-      setEditingId(company.id);
-      setEditForm(company);
-    } else {
-      requestCompanyChange('update', company, currentUser);
-      alert('Запрос на изменение отправлен администратору');
-    }
-  };
-
-  const handleDelete = (company) => {
-    if (window.confirm('Удалить компанию?')) {
-      if (currentUser.role === 'admin') directCompanyUpdate(company, currentUser, true);
-      else requestCompanyChange('delete', company, currentUser);
-      onRefresh();
-    }
-  };
-
-  const saveEdit = () => {
-    directCompanyUpdate(editForm, currentUser);
-    setEditingId(null);
-    onRefresh();
-  };
+export default function CompanyTable({ companies, onOpenCompany }) {
+  const { findUserById } = useData();
+  const [hoverId, setHoverId] = useState(null);
 
   return (
     <div className="table-container">
       <table>
-        <thead><tr><th>Название</th><th>Сфера</th><th>Представитель</th><th>Статус</th><th>Занятость</th><th>Действия</th><th>Комментарии</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Сферы</th>
+            <th>Статус</th>
+            <th>Занятость</th>
+            <th>Представители</th>
+          </tr>
+        </thead>
         <tbody>
-          {companies.map(c => (
-            <React.Fragment key={c.id}>
-              <tr className={c.occupiedBy ? 'occupied-row' : ''}>
-                {editingId === c.id ? (
-                  <>
-                    <td><input value={editForm.name} onChange={e => setEditForm({...editForm, name:e.target.value})} /></td>
-                    <td><input value={editForm.industry} onChange={e => setEditForm({...editForm, industry:e.target.value})} /></td>
-                    <td><input value={editForm.repName} onChange={e => setEditForm({...editForm, repName:e.target.value})} /></td>
-                    <td><select value={editForm.status} onChange={e => setEditForm({...editForm, status:e.target.value})}><option value="hot">Горячий</option><option value="warm">Тёплый</option></select></td>
-                    <td>{c.occupiedByName || 'Свободна'}</td>
-                    <td><button onClick={saveEdit}>💾</button><button onClick={() => setEditingId(null)}>❌</button></td>
-                  </>
-                ) : (
-                  <>
-                    <td>{c.name}</td><td>{c.industry}</td><td>{c.repName}</td>
-                    <td><span className={`status-badge ${c.status}`}>{c.status === 'hot' ? 'Горячий' : 'Тёплый'}</span></td>
-                    <td>{c.occupiedByName ? <strong>{c.occupiedByName}</strong> : 'Свободна'}</td>
-                    <td>
-                      <button onClick={() => handleEdit(c)}>✏️</button>
-                      <button onClick={() => handleDelete(c)}>🗑️</button>
-                      <button onClick={() => handleOccupy(c)}>{c.occupiedBy === currentUser.id ? 'Освободить' : 'Занять'}</button>
-                    </td>
-                  </>
-                )}
-                <td><CommentSection 
-  companyId={c.id} 
-  comments={getCommentsForCompany(c.id)} 
-  occupiedBy={c.occupiedBy}
-/></td>
+          {companies.map((c) => {
+            const occupant = c.occupiedBy ? findUserById(c.occupiedBy) : null;
+            return (
+              <tr
+                key={c.id}
+                className={`company-row ${c.occupiedBy ? 'occupied-row' : ''}`}
+                onClick={() => onOpenCompany(c)}
+              >
+                <td>
+                  <strong className="company-row-name">{c.name}</strong>
+                </td>
+                <td>
+                  <div className="table-tags">
+                    {(c.industries || []).slice(0, 3).map((ind) => (
+                      <span key={ind} className="table-tag">
+                        {ind}
+                      </span>
+                    ))}
+                    {(c.industries || []).length > 3 && (
+                      <span className="table-tag">+{(c.industries || []).length - 3}</span>
+                    )}
+                  </div>
+                </td>
+                <td>
+                  <span className={`status-badge ${c.status}`}>
+                    {c.status === 'hot' ? 'Горячий' : 'Тёплый'}
+                  </span>
+                </td>
+                <td
+                  className="occupy-cell"
+                  onMouseEnter={() => setHoverId(c.id)}
+                  onMouseLeave={() => setHoverId(null)}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {c.occupiedBy ? (
+                    <span className="occupy-name busy">{c.occupiedByName || 'Занята'}</span>
+                  ) : (
+                    <span className="occupy-name free">Свободна</span>
+                  )}
+                  {hoverId === c.id && occupant && (
+                    <div className="occupy-tooltip">
+                      <div>
+                        <strong>
+                          {occupant.firstName} {occupant.lastName}
+                        </strong>
+                      </div>
+                      <div>{occupant.email}</div>
+                      {occupant.phone && <div>{occupant.phone}</div>}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  {(c.contacts || []).map((ct) => ct.name).filter(Boolean).join(', ') || '—'}
+                </td>
               </tr>
-            </React.Fragment>
-          ))}
+            );
+          })}
+          {companies.length === 0 && (
+            <tr>
+              <td colSpan={5} className="empty-state">
+                Компаний пока нет
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

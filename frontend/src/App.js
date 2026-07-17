@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Companies from './pages/Companies';
 import Profile from './pages/Profile';
 import AdminPanel from './pages/AdminPanel';
@@ -11,6 +10,7 @@ import AdminPanel from './pages/AdminPanel';
 function NavBar() {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (!currentUser) return null;
 
@@ -21,14 +21,26 @@ function NavBar() {
   const isProfilePage = location.pathname === '/profile';
   const profileLink = isProfilePage ? '/companies' : '/profile';
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <nav className="compact-nav">
       <div className="nav-user">
+        {currentUser.role === 'admin' && (
+          <Link to="/admin" className="nav-admin-link">
+            Админ
+          </Link>
+        )}
         <Link to={profileLink} className="user-plate">
           <span className="user-avatar-small">{getInitials() || '👤'}</span>
           <span className="user-name-small">{currentUser.firstName}</span>
         </Link>
-       
+        <button type="button" className="logout-btn" onClick={handleLogout}>
+          Выйти
+        </button>
       </div>
     </nav>
   );
@@ -42,7 +54,6 @@ function AppContent() {
       <NavBar />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/companies" element={<PrivateRoute><Companies /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminPanel /></PrivateRoute>} />

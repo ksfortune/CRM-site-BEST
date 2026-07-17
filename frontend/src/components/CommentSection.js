@@ -7,8 +7,8 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
   const { addComment } = useData();
   const [text, setText] = useState('');
 
-  // Проверяем, может ли текущий пользователь писать комментарии
-  const canComment = occupiedBy === currentUser?.id;
+  const isAdmin = currentUser?.role === 'admin';
+  const canComment = isAdmin || occupiedBy === currentUser?.id;
 
   const handleSubmit = () => {
     if (!canComment) {
@@ -16,7 +16,12 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
       return;
     }
     if (text.trim()) {
-      addComment(companyId, currentUser.id, `${currentUser.firstName} ${currentUser.lastName}`, text);
+      addComment(
+        companyId,
+        currentUser.id,
+        `${currentUser.firstName} ${currentUser.lastName}`,
+        text
+      );
       setText('');
     }
   };
@@ -24,26 +29,31 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
   return (
     <div className="comments">
       <ul>
-        {comments.map(c => (
+        {comments.map((c) => (
           <li key={c.id}>
-            <b>{c.userName}</b> ({new Date(c.createdAt).toLocaleString()}):<br />
+            <b>{c.userName}</b> ({new Date(c.createdAt).toLocaleString()}):
+            <br />
             {c.text}
           </li>
         ))}
       </ul>
       {canComment ? (
         <>
-          <textarea 
-            rows="2" 
-            value={text} 
-            onChange={e => setText(e.target.value)} 
+          <textarea
+            rows="2"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
             placeholder="Написать комментарий..."
           />
-          <button onClick={handleSubmit}>Добавить</button>
+          <button type="button" onClick={handleSubmit}>
+            Добавить
+          </button>
         </>
       ) : (
-        <div style={{ fontSize: '0.7rem', color: '#888', fontStyle: 'italic', marginTop: '4px' }}>
-          {occupiedBy ? 'Компания занята другим пользователем' : 'Компания свободна — займите, чтобы комментировать'}
+        <div className="comments-hint">
+          {occupiedBy
+            ? 'Компания занята другим пользователем'
+            : 'Компания свободна — займите, чтобы комментировать'}
         </div>
       )}
     </div>

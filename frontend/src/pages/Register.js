@@ -72,9 +72,8 @@ export default function Register() {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
+      <div className="auth-card auth-card-wide">
         <div className="auth-header">
-          <div className="auth-icon">📝</div>
           <h2>Регистрация</h2>
           <p>Создайте аккаунт для работы с контактами</p>
         </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function AdminPanel() {
   const { currentUser, logout } = useAuth();
@@ -9,23 +10,35 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('requests'); // теперь по умолчанию запросы
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState(null);
   const [newUserForm, setNewUserForm] = useState({
     email: '',
     password: '',
     firstName: '',
     lastName: '',
+    phone: '',
+    bestEmail: '',
     role: 'user'
   });
+  const [userSearch, setUserSearch] = useState('');
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const activeUsers = users.filter(u => u.isApproved && !u.isBlocked);
   const blockedUsers = users.filter(u => u.isBlocked);
+  const filteredUsers = users.filter((u) => {
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase();
+    return (
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.phone || '').toLowerCase().includes(q)
+    );
+  });
 
-  const handleTransferAdmin = (newAdminId) => {
-    if (window.confirm('Передать права главного администратора? Вы выйдете из системы.')) {
-      transferAdmin(currentUser.id, newAdminId);
-      logout();
-    }
+  const handleTransferAdmin = () => {
+    if (!transferTargetId) return;
+    transferAdmin(currentUser.id, transferTargetId);
+    logout();
   };
 
   const getUserCompanies = (userId) => {
@@ -34,18 +47,55 @@ export default function AdminPanel() {
 
   const handleCreateUser = (e) => {
     e.preventDefault();
-    if (!newUserForm.email || !newUserForm.password || !newUserForm.firstName || !newUserForm.lastName) {
-      alert('Заполните все поля');
+    e.stopPropagation();
+
+    const firstName = (newUserForm.firstName || '').trim();
+    const lastName = (newUserForm.lastName || '').trim();
+    const email = (newUserForm.email || '').trim().toLowerCase();
+    const password = newUserForm.password || '';
+    const phone = (newUserForm.phone || '').trim();
+    const bestEmail = (newUserForm.bestEmail || '').trim() || email;
+
+    if (!email || !password || !firstName || !lastName) {
+      alert('Заполните имя, фамилию, email и пароль');
       return;
     }
-    if (users.find(u => u.email === newUserForm.email)) {
+    if (password.length < 4) {
+      alert('Пароль должен быть не менее 4 символов');
+      return;
+    }
+    if (users.some((u) => (u.email || '').toLowerCase() === email)) {
       alert('Пользователь с таким email уже существует');
       return;
     }
-    createUserByAdmin(newUserForm);
-    setIsCreateModalOpen(false);
-    setNewUserForm({ email: '', password: '', firstName: '', lastName: '', role: 'user' });
-    alert('Пользователь создан');
+
+    try {
+      createUserByAdmin({
+        firstName,
+        lastName,
+        email,
+        password,
+        phone,
+        bestEmail,
+        role: newUserForm.role || 'user',
+        socials: [],
+      });
+      setIsCreateModalOpen(false);
+      setActiveTab('users');
+      setNewUserForm({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        bestEmail: '',
+        role: 'user',
+      });
+      alert('Пользователь создан');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Не удалось создать пользователя');
+    }
   };
 
   return (
@@ -113,8 +163,14 @@ export default function AdminPanel() {
               <div className="stat">✅ Активных: {activeUsers.length}</div>
               <div className="stat">🚫 Заблокированных: {blockedUsers.length}</div>
             </div>
+            <input
+              className="admin-search"
+              placeholder="Поиск по имени, email, телефону..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+            />
             <div className="users-grid">
-              {users.map(user => (
+              {filteredUsers.map(user => (
                 <div key={user.id} className={`user-card ${user.isBlocked ? 'blocked' : ''} ${user.role === 'admin' ? 'admin' : ''}`}>
                   <div className="user-avatar">{user.firstName?.[0]}{user.lastName?.[0]}</div>
                   <div className="user-info">
@@ -123,6 +179,7 @@ export default function AdminPanel() {
                       {user.role === 'admin' && <span className="admin-badge">Админ</span>}
                     </div>
                     <div className="user-email">{user.email}</div>
+                    {user.phone && <div className="user-email">📞 {user.phone}</div>}
                     <div className="user-status">
                       {user.isBlocked ? '🚫 Заблокирован' : '✅ Активен'}
                     </div>
@@ -156,13 +213,13 @@ export default function AdminPanel() {
                     <button className="btn-view" onClick={() => setSelectedUserId(selectedUserId === user.id ? null : user.id)}>
                       {selectedUserId === user.id ? 'Скрыть компании' : 'Показать компании'}
                     </button>
-                    {user.id !== currentUser.id && user.role !== 'admin' && (
+                    {user.id !== currentUser?.id && user.role !== 'admin' && (
                       <button className="btn-block" onClick={() => blockUser(user.id, !user.isBlocked)}>
                         {user.isBlocked ? '🔓 Разблокировать' : '🔒 Заблокировать'}
                       </button>
                     )}
-                    {user.role !== 'admin' && user.id !== currentUser.id && !user.isBlocked && (
-                      <button className="btn-transfer" onClick={() => handleTransferAdmin(user.id)}>
+                    {user.role !== 'admin' && user.id !== currentUser?.id && !user.isBlocked && (
+                      <button className="btn-transfer" onClick={() => setTransferTargetId(user.id)}>
                         👑 Сделать главным админом
                       </button>
                     )}
@@ -199,6 +256,18 @@ export default function AdminPanel() {
             required
           />
           <input
+            type="text"
+            placeholder="Лучшая почта"
+            value={newUserForm.bestEmail}
+            onChange={e => setNewUserForm({...newUserForm, bestEmail: e.target.value})}
+          />
+          <input
+            type="text"
+            placeholder="Телефон"
+            value={newUserForm.phone}
+            onChange={e => setNewUserForm({...newUserForm, phone: e.target.value})}
+          />
+          <input
             type="password"
             placeholder="Пароль *"
             value={newUserForm.password}
@@ -213,11 +282,21 @@ export default function AdminPanel() {
             <option value="admin">Администратор (полные права)</option>
           </select>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
-            <button type="button" onClick={() => setIsCreateModalOpen(false)}>Отмена</button>
-            <button type="submit">Создать</button>
+            <button type="button" className="btn-ghost" onClick={() => setIsCreateModalOpen(false)}>Отмена</button>
+            <button type="submit" className="btn-primary">Создать</button>
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!transferTargetId}
+        onClose={() => setTransferTargetId(null)}
+        onConfirm={handleTransferAdmin}
+        title="Передача прав"
+        message="Передать права главного администратора? Вы выйдете из системы."
+        confirmLabel="Передать"
+        danger
+      />
     </div>
   );
 }

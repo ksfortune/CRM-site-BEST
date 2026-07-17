@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,9 +28,8 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-icon">🔐</div>
-          <h2>Вход в систему</h2>
-          <p>Добро пожаловать! Войдите в свой аккаунт</p>
+          <h2>Авторизация</h2>
+          <p>Войдите, чтобы продолжить работу</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -40,7 +39,7 @@ export default function Login() {
             <label>Email</label>
             <input
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@admin.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -65,7 +64,7 @@ export default function Login() {
         </form>
 
         <div className="auth-footer">
-          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+          Доступ выдаёт администратор
         </div>
       </div>
     </div>

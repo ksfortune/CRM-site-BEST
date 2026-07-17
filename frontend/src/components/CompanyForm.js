@@ -1,104 +1,209 @@
 import React, { useState } from 'react';
+import { v4 as uuid } from 'uuid';
+import SocialChips from './SocialChips';
 
-export default function CompanyForm({ onSubmit, industries, onAddIndustry, onCancel, initialData }) {
-  const [form, setForm] = useState(initialData || {
-    name: '',
-    industry: '',
-    repName: '',
-    phone: '',
-    messenger: '',
-    email: '',
-    website: '',
-    status: 'warm'
-  });
+const emptyContact = () => ({
+  id: uuid(),
+  name: '',
+  nickname: '',
+  phone: '',
+  channels: [],
+});
+
+export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry, onCancel, initialData }) {
+  const [form, setForm] = useState(() => normalizeInitial(initialData));
   const [newIndustry, setNewIndustry] = useState('');
-  const [showNewIndustryInput, setShowNewIndustryInput] = useState(false);
+  const [showNewIndustry, setShowNewIndustry] = useState(false);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const toggleIndustry = (ind) => {
+    setForm((prev) => {
+      const has = prev.industries.includes(ind);
+      return {
+        ...prev,
+        industries: has ? prev.industries.filter((i) => i !== ind) : [...prev.industries, ind],
+      };
+    });
   };
 
-  const handleIndustryChange = (e) => {
-    const value = e.target.value;
-    if (value === '__new__') {
-      setShowNewIndustryInput(true);
-      setForm({ ...form, industry: '' });
-    } else {
-      setShowNewIndustryInput(false);
-      setForm({ ...form, industry: value });
-    }
+  const addIndustry = () => {
+    const value = newIndustry.trim();
+    if (!value) return;
+    if (!industriesCatalog.includes(value)) onAddIndustry(value);
+    setForm((prev) => ({
+      ...prev,
+      industries: prev.industries.includes(value) ? prev.industries : [...prev.industries, value],
+    }));
+    setNewIndustry('');
+    setShowNewIndustry(false);
   };
 
-  const addNewIndustry = () => {
-    if (newIndustry.trim()) {
-      if (!industries.includes(newIndustry)) {
-        onAddIndustry(newIndustry);
-        setForm({ ...form, industry: newIndustry });
-      } else {
-        alert('Такая сфера уже существует');
-        setForm({ ...form, industry: newIndustry });
-      }
-      setNewIndustry('');
-      setShowNewIndustryInput(false);
-    }
+  const updateContact = (idx, patch) => {
+    setForm((prev) => ({
+      ...prev,
+      contacts: prev.contacts.map((c, i) => (i === idx ? { ...c, ...patch } : c)),
+    }));
+  };
+
+  const removeContact = (idx) => {
+    setForm((prev) => ({
+      ...prev,
+      contacts: prev.contacts.filter((_, i) => i !== idx),
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name || !form.industry) {
-      alert('Название и сфера деятельности обязательны');
+    if (!form.name.trim()) {
+      alert('Название обязательно');
       return;
     }
-    onSubmit(form);
-    // Сброс формы, если это добавление новой компании (не редактирование)
-    if (!initialData) {
-      setForm({
-        name: '', industry: '', repName: '', phone: '', messenger: '', email: '', website: '', status: 'warm'
-      });
+    if (!form.industries.length) {
+      alert('Укажите хотя бы одну сферу деятельности');
+      return;
     }
-    setShowNewIndustryInput(false);
+    onSubmit({
+      ...form,
+      name: form.name.trim(),
+      contacts: form.contacts.filter((c) => c.name.trim()),
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input name="name" placeholder="Название *" value={form.name} onChange={handleChange} required />
-      
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' }}>
-        <select name="industry" value={form.industry || (showNewIndustryInput ? '' : form.industry)} onChange={handleIndustryChange} style={{ flex: 1, minWidth: '150px' }}>
-          <option value="">Выберите сферу *</option>
-          {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
-          <option value="__new__">➕ Новая сфера</option>
-        </select>
-        
-        {showNewIndustryInput && (
-          <>
-            <input 
-              placeholder="Название новой сферы" 
-              value={newIndustry} 
-              onChange={e => setNewIndustry(e.target.value)} 
-              style={{ flex: 1 }}
+    <form onSubmit={handleSubmit} className="company-edit-form">
+      <div className="form-section">
+        <label className="field-label">Название *</label>
+        <input
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Название компании"
+          required
+        />
+      </div>
+
+      <div className="form-section">
+        <label className="field-label">Сферы деятельности *</label>
+        <div className="industry-chips">
+          {industriesCatalog.map((ind) => (
+            <button
+              key={ind}
+              type="button"
+              className={`industry-chip ${form.industries.includes(ind) ? 'active' : ''}`}
+              onClick={() => toggleIndustry(ind)}
+            >
+              {ind}
+            </button>
+          ))}
+          <button type="button" className="industry-chip add" onClick={() => setShowNewIndustry(true)}>
+            + Новая
+          </button>
+        </div>
+        {showNewIndustry && (
+          <div className="inline-add-row">
+            <input
+              value={newIndustry}
+              onChange={(e) => setNewIndustry(e.target.value)}
+              placeholder="Новая сфера"
             />
-            <button type="button" onClick={addNewIndustry}>✅ Добавить</button>
-            <button type="button" onClick={() => setShowNewIndustryInput(false)}>❌ Отмена</button>
-          </>
+            <button type="button" className="btn-primary" onClick={addIndustry}>
+              Добавить
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => setShowNewIndustry(false)}>
+              Отмена
+            </button>
+          </div>
+        )}
+        {form.industries.length > 0 && (
+          <div className="selected-tags">
+            Выбрано: {form.industries.join(', ')}
+          </div>
         )}
       </div>
-      
-      <input name="repName" placeholder="Имя представителя" value={form.repName} onChange={handleChange} />
-      <input name="phone" placeholder="Телефон" value={form.phone} onChange={handleChange} />
-      <input name="messenger" placeholder="Мессенджер" value={form.messenger} onChange={handleChange} />
-      <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
-      <input name="website" placeholder="Сайт / VK / TG" value={form.website} onChange={handleChange} />
-      
-      <select name="status" value={form.status} onChange={handleChange}>
-        <option value="hot">Горячий</option>
-        <option value="warm">Тёплый</option>
-      </select>
-      
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
-        <button type="button" onClick={onCancel}>Отмена</button>
-        <button type="submit">Сохранить</button>
+
+      <div className="form-section">
+        <label className="field-label">Статус</label>
+        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <option value="warm">Тёплый</option>
+          <option value="hot">Горячий</option>
+        </select>
+      </div>
+
+      <div className="form-section">
+        <div className="section-head">
+          <label className="field-label">Представители</label>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => setForm((prev) => ({ ...prev, contacts: [...prev.contacts, emptyContact()] }))}
+          >
+            + Контакт
+          </button>
+        </div>
+        {form.contacts.length === 0 && (
+          <p className="empty-message">Пока нет представителей — добавьте контакт</p>
+        )}
+        {form.contacts.map((contact, idx) => (
+          <div key={contact.id} className="contact-edit-card">
+            <div className="contact-edit-grid">
+              <input
+                placeholder="Имя *"
+                value={contact.name}
+                onChange={(e) => updateContact(idx, { name: e.target.value })}
+              />
+              <input
+                placeholder="Никнейм"
+                value={contact.nickname}
+                onChange={(e) => updateContact(idx, { nickname: e.target.value })}
+              />
+              <input
+                placeholder="Телефон"
+                value={contact.phone}
+                onChange={(e) => updateContact(idx, { phone: e.target.value })}
+              />
+            </div>
+            <label className="field-label subtle">Способы связи</label>
+            <SocialChips
+              channels={contact.channels || []}
+              onChange={(channels) => updateContact(idx, { channels })}
+            />
+            <button type="button" className="remove-contact-btn" onClick={() => removeContact(idx)}>
+              Удалить контакт
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="form-actions">
+        <button type="button" className="btn-ghost" onClick={onCancel}>
+          Отмена
+        </button>
+        <button type="submit" className="btn-primary">
+          Сохранить
+        </button>
       </div>
     </form>
   );
+}
+
+function normalizeInitial(data) {
+  if (!data) {
+    return {
+      name: '',
+      industries: [],
+      status: 'warm',
+      contacts: [],
+    };
+  }
+  return {
+    ...data,
+    name: data.name || '',
+    industries: data.industries || (data.industry ? [data.industry] : []),
+    status: data.status || 'warm',
+    contacts: (data.contacts || []).map((c) => ({
+      id: c.id || uuid(),
+      name: c.name || '',
+      nickname: c.nickname || '',
+      phone: c.phone || '',
+      channels: c.channels || [],
+    })),
+  };
 }
