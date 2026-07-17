@@ -29,7 +29,13 @@ export default function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <h2>Авторизация</h2>
-          <p>Войдите, чтобы продолжить работу</p>
+          <p>Безопасное пространство · LGBTQ+ · BLM · women welcome</p>
+          <div className="auth-pride-row" aria-hidden="true">
+            <span>🏳️‍🌈</span>
+            <span>🏳️‍⚧️</span>
+            <span>✊</span>
+            <span>♀️</span>
+          </div>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -65,6 +71,7 @@ export default function Login() {
 
         <div className="auth-footer">
           Доступ выдаёт администратор
+          <div className="auth-solidarity">Trans women are women · Black Lives Matter</div>
         </div>
       </div>
     </div>

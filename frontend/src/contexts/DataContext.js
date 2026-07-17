@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
+import { ensureSeedCompanies } from '../data/seedCompanies';
 
 const DataContext = createContext();
 
@@ -86,11 +87,12 @@ export function DataProvider({ children }) {
   const [companies, setCompanies] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.COMPANIES);
-      if (stored) return JSON.parse(stored).map(migrateCompany);
+      const parsed = stored ? JSON.parse(stored).map(migrateCompany) : [];
+      return ensureSeedCompanies(parsed).map(migrateCompany);
     } catch (e) {
       console.error('Failed to read companies', e);
     }
-    return [];
+    return ensureSeedCompanies([]).map(migrateCompany);
   });
   const [comments, setComments] = useState(() => {
     try {
