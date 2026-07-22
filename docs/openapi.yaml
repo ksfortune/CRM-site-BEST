@@ -101,6 +101,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /users/{userId}/companies:
+    get:
+      summary: Получить компании пользователя
+      description: Возвращает id и name компаний юзера
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID пользователя
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserCompany'
+        '401':
+          description: Неавторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     User:
@@ -119,6 +146,11 @@ components:
           type: string
           example: "user"
           description: Роль пользователя
+        socials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Social'
+          description: Список соцсетей пользователя
 
     Error:
       type: object
@@ -154,39 +186,93 @@ components:
           example: ["Еда", "Напитки"]
           description: Сферы деятельности компании
         availability:
-          type: string
-          example: "Ксен Бальб"
-          description: "Кем занята компания (или Свободна)"
+          type: object
+          properties:
+            userId:
+              type: integer
+              example: 5
+              description: ID пользователя, который занял компанию (null если свободна)
+            userName:
+              type: string
+              example: "Ксен Бальб"
+              description: Имя пользователя (null если свободна)
+          description: Информация о том, кто занял компанию
+        representatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/Representative'
+          description: Список представителей компании
 
     CompanyInput:
       type: object
       required:
         - name
-        - sphere
+        - spheres
         - status
       properties:
         name:
           type: string
           example: "ООО Тлиз"
           description: Название компании
-        sphere:
-          type: string
-          example: "Еда"
-          description: Сфера деятельности
+        spheres:
+          type: array
+          items:
+            type: string
+          example: ["Еда", "Напитки"]
+          description: Сферы деятельности компании
         status:
           type: string
+          enum: ["Теплая", "Горячая"]
           example: "Теплая"
           description: Статус компании
-        contact_name:
+
+    Social:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: ID записи
+        type:
           type: string
-          example: "Иван Фролов"
-          description: Имя представителя (опционально)
-        contact_phone:
+          enum: ["facebook", "vk", "tg", "phone"]
+          example: "phone"
+          description: Тип (facebook/vk/tg/phone)
+        value:
           type: string
-          example: "+7 999 228-52-33"
-          description: Телефон представителя (опционально)
-        contact_email:
+          example: "+7 999 123-45-67"
+          description: Значение (ссылка или номер телефона)
+
+    UserCompany:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: ID компании
+        name:
+          type: string
+          example: "ООО Тлиз"
+          description: Название компании
+
+    Representative:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: ID представителя
+        name:
+          type: string
+          example: "Иван Петров"
+          description: Имя представителя
+        email:
           type: string
           format: email
           example: "ivan@example.com"
-          description: Почта представителя (опционально)
+          description: Почта представителя
+        socials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Social'
+          description: Список соцсетей и телефона представителя
