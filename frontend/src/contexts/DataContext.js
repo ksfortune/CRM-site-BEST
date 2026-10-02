@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
+import { mergeSeedCompanies } from '../data/seedCompanies';
 
 const DataContext = createContext();
 
@@ -25,6 +26,21 @@ const DEFAULT_ADMIN = {
   createdAt: new Date().toISOString()
 };
 
+const DEFAULT_USER = {
+  id: 'user-default',
+  email: 'user@user.com',
+  password: 'user',
+  firstName: 'Иван',
+  lastName: 'Иванов',
+  bestEmail: 'user@user.com',
+  phone: '+7 900 000-00-01',
+  role: 'user',
+  isApproved: true,
+  isBlocked: false,
+  socials: [],
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
 function ensureAdminUser(list) {
   const users = Array.isArray(list) ? list : [];
   const hasAdmin = users.some(
@@ -47,6 +63,29 @@ function ensureAdminUser(list) {
     );
   }
   return [DEFAULT_ADMIN, ...users.map((u) => ({ ...u, phone: u.phone || '', socials: u.socials || [] }))];
+}
+
+function ensureTemplateUser(list) {
+  const users = Array.isArray(list) ? list : [];
+  const isTemplate = (u) => u.email === 'user@user.com' || u.id === DEFAULT_USER.id;
+  if (users.some(isTemplate)) {
+    return users.map((u) =>
+      isTemplate(u)
+        ? {
+            ...DEFAULT_USER,
+            ...u,
+            email: 'user@user.com',
+            password: u.password || 'user',
+            role: u.role === 'admin' ? 'admin' : 'user',
+            isApproved: true,
+            isBlocked: false,
+            phone: u.phone || DEFAULT_USER.phone,
+            socials: u.socials || [],
+          }
+        : u
+    );
+  }
+  return [...users, DEFAULT_USER];
 }
 
 function migrateCompany(c) {
@@ -77,20 +116,20 @@ export function DataProvider({ children }) {
   const [users, setUsers] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-      if (stored) return ensureAdminUser(JSON.parse(stored));
+      if (stored) return ensureTemplateUser(ensureAdminUser(JSON.parse(stored)));
     } catch (e) {
       console.error('Failed to read users', e);
     }
-    return ensureAdminUser([]);
+    return ensureTemplateUser(ensureAdminUser([]));
   });
   const [companies, setCompanies] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.COMPANIES);
-      if (stored) return JSON.parse(stored).map(migrateCompany);
+      if (stored) return mergeSeedCompanies(JSON.parse(stored)).map(migrateCompany);
     } catch (e) {
       console.error('Failed to read companies', e);
     }
-    return [];
+    return mergeSeedCompanies([]).map(migrateCompany);
   });
   const [comments, setComments] = useState(() => {
     try {
