@@ -53,8 +53,21 @@ export default function Companies() {
 
   return (
     <div className="container">
-      <h1>Тёплые контакты</h1>
-      <p className="page-subtitle">База компаний и контактов</p>
+      <h1 className="chaos-title">
+        <span className="chaos-title-glitch" data-text="Тёплые контакты">
+          Тёплые контакты
+        </span>
+        <span className="chaos-title-badge">🏳️‍⚧️ pride · BLM · women</span>
+      </h1>
+      <p className="page-subtitle chaos-subtitle">
+        LGBTQ+ friendly · trans women are women · Black Lives Matter · women supporting women
+      </p>
+      <div className="solidarity-strip" role="note">
+        <span className="solidarity-pill pride">🏳️‍🌈 LGBTQ+</span>
+        <span className="solidarity-pill trans">🏳️‍⚧️ Trans rights</span>
+        <span className="solidarity-pill women">♀️ Women first</span>
+        <span className="solidarity-pill blm">✊ Black Lives Matter</span>
+      </div>
       <CompanyFilters
         filters={filters}
         setFilters={setFilters}

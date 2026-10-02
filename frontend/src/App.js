@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import PrivateRoute from './components/PrivateRoute';
+import ChaosLayer from './components/ChaosLayer';
+import GlobalActionFX from './components/GlobalActionFX';
 import Login from './pages/Login';
 import Companies from './pages/Companies';
 import Profile from './pages/Profile';
@@ -51,6 +53,8 @@ function AppContent() {
   if (loading) return <div className="loading-screen">Загрузка...</div>;
   return (
     <>
+      <ChaosLayer />
+      <GlobalActionFX />
       <NavBar />
       <Routes>
         <Route path="/login" element={<Login />} />
