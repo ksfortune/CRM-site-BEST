@@ -6,6 +6,7 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
   const { currentUser } = useAuth();
   const { addComment } = useData();
   const [text, setText] = useState('');
+  const [composing, setComposing] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin';
   const canComment = isAdmin || occupiedBy === currentUser?.id;
@@ -23,32 +24,42 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
         text
       );
       setText('');
+      setComposing(false);
     }
   };
 
   return (
     <div className="comments">
-      <ul>
-        {comments.map((c) => (
-          <li key={c.id}>
-            <b>{c.userName}</b> ({new Date(c.createdAt).toLocaleString()}):
+      {comments.map((c) => (
+        <article key={c.id} className="comment-card">
+          <h5>Комментарий</h5>
+          <p className="comment-text">{c.text}</p>
+          <p className="comment-meta">
+            Дата: {new Date(c.createdAt).toLocaleString('ru-RU')}
             <br />
-            {c.text}
-          </li>
-        ))}
-      </ul>
+            Создатель: {c.userName}
+          </p>
+        </article>
+      ))}
       {canComment ? (
-        <>
-          <textarea
-            rows="2"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Написать комментарий..."
-          />
-          <button type="button" onClick={handleSubmit}>
-            Добавить
+        composing ? (
+          <div className="comment-compose">
+            <textarea
+              rows="3"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Комментарий"
+              autoFocus
+            />
+            <button type="button" className="text-action" onClick={handleSubmit}>
+              Сохранить
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="add-comment" onClick={() => setComposing(true)}>
+            Добавить комментарий
           </button>
-        </>
+        )
       ) : (
         <div className="comments-hint">
           {occupiedBy

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
-import { mergeSeedCompanies } from '../data/seedCompanies';
+import { applyDemoOccupancy, mergeSeedCompanies } from '../data/seedCompanies';
 
 const DataContext = createContext();
 
@@ -34,6 +34,21 @@ const DEFAULT_USER = {
   lastName: 'Иванов',
   bestEmail: 'user@user.com',
   phone: '+7 900 000-00-01',
+  role: 'user',
+  isApproved: true,
+  isBlocked: false,
+  socials: [],
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+const NASTYA_USER = {
+  id: 'user-nastya',
+  email: 'nastya@shedrina.com',
+  password: 'nastya',
+  firstName: 'Настя',
+  lastName: 'Шедрина',
+  bestEmail: 'nastya@shedrina.com',
+  phone: '',
   role: 'user',
   isApproved: true,
   isBlocked: false,
@@ -88,6 +103,32 @@ function ensureTemplateUser(list) {
   return [...users, DEFAULT_USER];
 }
 
+function ensureNastyaUser(list) {
+  const users = Array.isArray(list) ? list : [];
+  const isNastya = (u) =>
+    (u.email || '').toLowerCase() === NASTYA_USER.email || u.id === NASTYA_USER.id;
+  if (users.some(isNastya)) {
+    return users.map((u) =>
+      isNastya(u)
+        ? {
+            ...NASTYA_USER,
+            ...u,
+            email: NASTYA_USER.email,
+            password: u.password || NASTYA_USER.password,
+            firstName: u.firstName || NASTYA_USER.firstName,
+            lastName: u.lastName || NASTYA_USER.lastName,
+            isApproved: true,
+            isBlocked: false,
+            role: u.role === 'admin' ? 'admin' : 'user',
+            phone: u.phone || '',
+            socials: u.socials || [],
+          }
+        : u
+    );
+  }
+  return [...users, NASTYA_USER];
+}
+
 function migrateCompany(c) {
   if (!c) return c;
   const industries = c.industries || (c.industry ? [c.industry] : []);
@@ -116,20 +157,20 @@ export function DataProvider({ children }) {
   const [users, setUsers] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-      if (stored) return ensureTemplateUser(ensureAdminUser(JSON.parse(stored)));
+      if (stored) return ensureNastyaUser(ensureTemplateUser(ensureAdminUser(JSON.parse(stored))));
     } catch (e) {
       console.error('Failed to read users', e);
     }
-    return ensureTemplateUser(ensureAdminUser([]));
+    return ensureNastyaUser(ensureTemplateUser(ensureAdminUser([])));
   });
   const [companies, setCompanies] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.COMPANIES);
-      if (stored) return mergeSeedCompanies(JSON.parse(stored)).map(migrateCompany);
+      if (stored) return applyDemoOccupancy(mergeSeedCompanies(JSON.parse(stored)).map(migrateCompany));
     } catch (e) {
       console.error('Failed to read companies', e);
     }
-    return mergeSeedCompanies([]).map(migrateCompany);
+    return applyDemoOccupancy(mergeSeedCompanies([]).map(migrateCompany));
   });
   const [comments, setComments] = useState(() => {
     try {

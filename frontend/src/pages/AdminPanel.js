@@ -101,8 +101,10 @@ export default function AdminPanel() {
   return (
     <div className="admin-container">
       <div className="admin-header">
-        <h1>Панель администратора</h1>
-        <p>Управление пользователями, компаниями и правами доступа</p>
+        <h1>Члены отдела</h1>
+        <button type="button" className="btn-create-user" onClick={() => { setActiveTab('users'); setIsCreateModalOpen(true); }}>
+          Добавить человека
+        </button>
       </div>
 
       <div className="admin-tabs">
@@ -153,10 +155,10 @@ export default function AdminPanel() {
         {/* Вкладка пользователей */}
         {activeTab === 'users' && (
           <div className="admin-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0 }}>Управление пользователями</h3>
+            <div className="admin-users-head">
+              <h3>Члены отдела</h3>
               <button className="btn-create-user" onClick={() => setIsCreateModalOpen(true)}>
-                + Создать пользователя
+                Добавить человека
               </button>
             </div>
             <div className="users-stats">
@@ -172,17 +174,18 @@ export default function AdminPanel() {
             <div className="users-grid">
               {filteredUsers.map(user => (
                 <div key={user.id} className={`user-card ${user.isBlocked ? 'blocked' : ''} ${user.role === 'admin' ? 'admin' : ''}`}>
-                  <div className="user-avatar">{user.firstName?.[0]}{user.lastName?.[0]}</div>
+                  <div className="member-line">
+                    <span>{user.firstName}</span>
+                    <span>{user.lastName}</span>
+                    <span>{user.email}</span>
+                    {user.role === 'admin' && <span className="admin-badge">Админ</span>}
+                  </div>
+                  <div className="member-line muted">
+                    <span>{user.socials?.length ? `Соц-сети: ${user.socials.length}` : 'Соц-сети'}</span>
+                    <span>{user.phone || ''}</span>
+                    <span className="user-status">{user.isBlocked ? 'Заблокирован' : 'Активен'}</span>
+                  </div>
                   <div className="user-info">
-                    <div className="user-name">
-                      {user.firstName} {user.lastName}
-                      {user.role === 'admin' && <span className="admin-badge">Админ</span>}
-                    </div>
-                    <div className="user-email">{user.email}</div>
-                    {user.phone && <div className="user-email">📞 {user.phone}</div>}
-                    <div className="user-status">
-                      {user.isBlocked ? '🚫 Заблокирован' : '✅ Активен'}
-                    </div>
                     {/* Соцсети */}
                     {user.socials && user.socials.length > 0 && (
                       <div className="user-socials">
@@ -232,7 +235,7 @@ export default function AdminPanel() {
       </div>
 
       {/* Модальное окно создания пользователя */}
-      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Создать пользователя">
+      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Добавить человека" className="modal-edit">
         <form onSubmit={handleCreateUser} className="create-user-form">
           <input
             type="text"

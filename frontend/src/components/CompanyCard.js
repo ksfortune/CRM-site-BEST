@@ -7,6 +7,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { socialLabel } from '../constants/socials';
 
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('ru-RU');
+}
+
 export default function CompanyCard({
   company,
   isOpen,
@@ -89,8 +96,9 @@ export default function CompanyCard({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={editing ? 'Изменение компании' : company.name}
+        title={editing ? 'Изменения данных компании' : company.name}
         size="lg"
+        className={editing ? 'modal-edit' : 'modal-company'}
       >
         {editing ? (
           <div className="company-edit-block">
@@ -104,115 +112,97 @@ export default function CompanyCard({
           </div>
         ) : (
           <div className="company-card-view">
-            <div className="company-card-meta">
-              <span className={`status-badge ${company.status}`}>
-                {company.status === 'hot' ? 'Горячий' : 'Тёплый'}
-              </span>
-              <span className={`occupy-badge ${company.occupiedBy ? 'busy' : 'free'}`}>
-                {company.occupiedBy
-                  ? `Занята: ${company.occupiedByName || 'пользователь'}`
-                  : 'Свободна'}
-              </span>
-            </div>
-
-            {occupant && (
-              <div className="occupant-details">
-                <strong>{occupant.firstName} {occupant.lastName}</strong>
-                <span>{occupant.email}</span>
-                {occupant.phone && <span>{occupant.phone}</span>}
-              </div>
-            )}
-
-            <section className="company-card-section">
-              <h4>Сферы</h4>
-              <div className="industry-chips readonly">
-                {(company.industries || []).map((ind) => (
-                  <span key={ind} className="industry-chip active">
-                    {ind}
+            <div className="sheet-grid">
+              <div className="sheet-left">
+                <h4>Компания</h4>
+                <p>Дата создания: {formatDate(company.createdAt)}</p>
+                <p>Дата изменения: {formatDate(company.updatedAt)}</p>
+                <p>Сфера: {(company.industries || []).join(', ') || '—'}</p>
+                <p>
+                  Статус:{' '}
+                  <span className={`status-word ${company.status}`}>
+                    {company.status === 'hot' ? 'Горячий' : 'Тёплый'}
                   </span>
-                ))}
-                {!(company.industries || []).length && (
-                  <span className="empty-message">Не указаны</span>
+                </p>
+                {occupant && (
+                  <p className="occupant-details">
+                    Занята: {occupant.firstName} {occupant.lastName}
+                  </p>
+                )}
+                <div className="sheet-divider" />
+                <div className="reps-head">
+                  <h4>Представители</h4>
+                  <button type="button" className="reps-add" onClick={() => setEditing(true)} aria-label="Добавить представителя">
+                    +
+                  </button>
+                </div>
+                {(company.contacts || []).length === 0 ? (
+                  <p className="empty-message">Нет представителей</p>
+                ) : (
+                  <ul className="contact-list">
+                    {(company.contacts || []).map((c) => (
+                      <li key={c.id} className="contact-row">
+                        <button
+                          type="button"
+                          className={`contact-list-item ${selectedContactId === c.id ? 'active' : ''}`}
+                          onClick={() =>
+                            setSelectedContactId(selectedContactId === c.id ? null : c.id)
+                          }
+                        >
+                          {c.name}
+                        </button>
+                        {selectedContactId === c.id && selectedContact && (
+                          <div className="contact-detail">
+                            {(selectedContact.channels || []).map((ch) => (
+                              <div key={`${ch.type}-${ch.value}`}>
+                                <strong>{socialLabel(ch.type)}</strong>
+                                <span>{ch.value || '—'}</span>
+                              </div>
+                            ))}
+                            {selectedContact.phone && (
+                              <div>
+                                <strong>Номер телефона</strong>
+                                <span>{selectedContact.phone}</span>
+                              </div>
+                            )}
+                            {!selectedContact.phone && !(selectedContact.channels || []).length && (
+                              <div className="empty-message">Нет данных</div>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-            </section>
-
-            <section className="company-card-section">
-              <h4>Представители</h4>
-              {(company.contacts || []).length === 0 ? (
-                <p className="empty-message">Нет представителей</p>
-              ) : (
-                <ul className="contact-list">
-                  {(company.contacts || []).map((c) => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        className={`contact-list-item ${selectedContactId === c.id ? 'active' : ''}`}
-                        onClick={() =>
-                          setSelectedContactId(selectedContactId === c.id ? null : c.id)
-                        }
-                      >
-                        <span className="contact-list-name">{c.name}</span>
-                        {c.nickname && <span className="contact-list-nick">@{c.nickname}</span>}
-                      </button>
-                      {selectedContactId === c.id && selectedContact && (
-                        <div className="contact-detail">
-                          {selectedContact.phone && (
-                            <div>
-                              <span className="info-label">Телефон:</span> {selectedContact.phone}
-                            </div>
-                          )}
-                          {(selectedContact.channels || []).map((ch) => (
-                            <div key={ch.type}>
-                              <span className="info-label">{socialLabel(ch.type)}:</span>{' '}
-                              {ch.value || '—'}
-                            </div>
-                          ))}
-                          {!selectedContact.phone && !(selectedContact.channels || []).length && (
-                            <div className="empty-message">Нет дополнительных данных</div>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="company-card-section">
-              <h4>Комментарии</h4>
-              <CommentSection
-                companyId={company.id}
-                comments={comments}
-                occupiedBy={company.occupiedBy}
-              />
-            </section>
-
+              <div className="sheet-right">
+                <CommentSection
+                  companyId={company.id}
+                  comments={comments}
+                  occupiedBy={company.occupiedBy}
+                />
+              </div>
+            </div>
             <div className="company-card-actions">
               {isFree && (
-                <button type="button" className="btn-primary" onClick={handleOccupy}>
+                <button type="button" className="text-action" onClick={handleOccupy}>
                   Занять
                 </button>
               )}
               {isMine && (
-                <button type="button" className="btn-primary" onClick={handleRelease}>
+                <button type="button" className="text-action" onClick={handleRelease}>
                   Освободить
                 </button>
               )}
               {isBusyByOther && isAdmin && (
-                <>
-                  <button type="button" className="btn-primary" onClick={handleTakeOver}>
-                    Перезанять
-                  </button>
-                  <button type="button" className="btn-ghost" onClick={handleRelease}>
-                    Освободить
-                  </button>
-                </>
+                <button type="button" className="text-action" onClick={handleTakeOver}>
+                  Перезанять
+                </button>
               )}
-              <button type="button" className="btn-ghost" onClick={() => setEditing(true)}>
-                Изменить
+              <button type="button" className="sheet-edit" onClick={() => setEditing(true)}>
+                Изменить данные
               </button>
-              <button type="button" className="btn-ghost btn-danger-text" onClick={() => setConfirmDelete(true)}>
+              <button type="button" className="text-action danger" onClick={() => setConfirmDelete(true)}>
                 Удалить
               </button>
             </div>

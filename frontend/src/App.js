@@ -26,23 +26,24 @@ function NavBar() {
     navigate('/login');
   };
 
+  const chipLabel = isProfilePage ? 'Компании' : 'Профиль';
+
   return (
-    <nav className="compact-nav">
-      <div className="nav-user">
-        {currentUser.role === 'admin' && (
-          <Link to="/admin" className="nav-admin-link">
-            Админ
-          </Link>
+    <header className="topbar">
+      <Link to="/companies" className="brand">Теплые контакты</Link>
+      <div className="topbar-side">
+        {currentUser.role === 'admin' && location.pathname !== '/admin' && (
+          <Link to="/admin" className="nav-admin-link">Отдел</Link>
         )}
-        <Link to={profileLink} className="user-plate">
-          <span className="user-avatar-small">{getInitials() || '👤'}</span>
-          <span className="user-name-small">{currentUser.firstName}</span>
+        <Link to={profileLink} className="profile-chip">
+          <span className="chip-avatar">{getInitials() || 'К'}</span>
+          <span>{chipLabel}</span>
         </Link>
         <button type="button" className="logout-btn" onClick={handleLogout}>
           Выйти
         </button>
       </div>
-    </nav>
+    </header>
   );
 }
 

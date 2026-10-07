@@ -49,8 +49,9 @@ export const SEED_COMPANIES = [
         channels: [{ type: 'email', value: 'olga@pixel.example' }],
       },
     ],
-    occupiedBy: null,
-    occupiedByName: null,
+    occupiedBy: 'user-nastya',
+    occupiedByName: 'Настя Шедрина',
+    demoOccupancyApplied: true,
     createdBy: 'admin-default',
     updatedBy: 'admin-default',
     createdAt: CREATED_AT,
@@ -73,8 +74,9 @@ export const SEED_COMPANIES = [
         ],
       },
     ],
-    occupiedBy: null,
-    occupiedByName: null,
+    occupiedBy: 'user-nastya',
+    occupiedByName: 'Настя Шедрина',
+    demoOccupancyApplied: true,
     createdBy: 'admin-default',
     updatedBy: 'admin-default',
     createdAt: CREATED_AT,
@@ -201,6 +203,21 @@ export const SEED_COMPANIES = [
     updatedAt: CREATED_AT,
   },
 ];
+
+const DEMO_OCCUPIED_IDS = new Set(['tpl-02', 'tpl-03']);
+
+export function applyDemoOccupancy(list) {
+  return (Array.isArray(list) ? list : []).map((company) => {
+    if (!DEMO_OCCUPIED_IDS.has(company.id) || company.demoOccupancyApplied) return company;
+    if (company.occupiedBy) return { ...company, demoOccupancyApplied: true };
+    return {
+      ...company,
+      occupiedBy: 'user-nastya',
+      occupiedByName: 'Настя Шедрина',
+      demoOccupancyApplied: true,
+    };
+  });
+}
 
 export function mergeSeedCompanies(list) {
   const companies = Array.isArray(list) ? list : [];
