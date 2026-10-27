@@ -1,33 +1,36 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import CompanyTable from '../components/CompanyTable';
-import CompanyFilters from '../components/CompanyFilters';
+import CompanyFilters, { type CompanyFilterValues } from '../components/CompanyFilters';
 import CompanyForm from '../components/CompanyForm';
 import CompanyCard from '../components/CompanyCard';
 import Modal from '../components/Modal';
+import type { Company, CompanyDraft, CreateUserInput } from '../types';
 
 const EMPTY_USER = { firstName: '', lastName: '', email: '', password: '' };
+
+type CompanyWithLegacy = Company & { industry?: string };
 
 export default function Companies() {
   const { currentUser } = useAuth();
   const { companies, requestCompanyChange, directCompanyUpdate, occupyCompany, createUserByAdmin } = useData();
-  const [filters, setFilters] = useState({ search: '', status: '', occupied: '', industry: '' });
-  const [customIndustries, setCustomIndustries] = useState([]);
+  const [filters, setFilters] = useState<CompanyFilterValues>({ search: '', status: '', occupied: '', industry: '' });
+  const [customIndustries, setCustomIndustries] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isUserOpen, setIsUserOpen] = useState(false);
   const [userForm, setUserForm] = useState(EMPTY_USER);
   const [userError, setUserError] = useState('');
-  const [selectedCompanyId, setSelectedCompanyId] = useState(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
-  const industries = [
-    ...new Set([
-      ...companies.flatMap((c) => c.industries || (c.industry ? [c.industry] : [])).filter(Boolean),
-      ...customIndustries,
-    ]),
-  ];
+  const storedCompanies = companies as CompanyWithLegacy[];
 
-  const filtered = companies.filter((c) => {
+  const industries = Array.from(new Set([
+    ...storedCompanies.flatMap((c) => c.industries || (c.industry ? [c.industry] : [])).filter(Boolean),
+    ...customIndustries,
+  ]));
+
+  const filtered = storedCompanies.filter((c) => {
     const industriesList = c.industries || (c.industry ? [c.industry] : []);
     if (filters.search && !c.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
     if (filters.status && c.status !== filters.status) return false;
@@ -37,9 +40,10 @@ export default function Companies() {
     return true;
   });
 
-  const selectedCompany = companies.find((c) => c.id === selectedCompanyId) || null;
+  const selectedCompany = storedCompanies.find((c) => c.id === selectedCompanyId) || null;
 
-  const handleCreate = (companyData) => {
+  const handleCreate = (companyData: CompanyDraft) => {
+    if (!currentUser) return;
     if (currentUser.role === 'admin') {
       directCompanyUpdate(companyData, currentUser);
     } else {
@@ -48,34 +52,36 @@ export default function Companies() {
     setIsCreateOpen(false);
   };
 
-  const handleAddIndustry = (newIndustry) => {
+  const handleAddIndustry = (newIndustry: string) => {
     const value = (newIndustry || '').trim();
     if (value && !industries.includes(value)) {
       setCustomIndustries((prev) => [...prev, value]);
     }
   };
 
-  const handleOccupy = (company) => {
+  const handleOccupy = (company: Company) => {
+    if (!currentUser) return;
     const name = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email;
     occupyCompany(company.id, currentUser.id, name);
   };
 
-  const handleCreateUser = (event) => {
+  const handleCreateUser = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      createUserByAdmin({
+      const payload: CreateUserInput = {
         firstName: userForm.firstName.trim(),
         lastName: userForm.lastName.trim(),
         email: userForm.email.trim(),
         password: userForm.password,
         bestEmail: userForm.email.trim(),
         role: 'user',
-      });
+      };
+      createUserByAdmin(payload);
       setUserForm(EMPTY_USER);
       setUserError('');
       setIsUserOpen(false);
     } catch (error) {
-      setUserError(error.message || 'Не удалось создать пользователя');
+      setUserError(error instanceof Error ? error.message : 'Не удалось создать пользователя');
     }
   };
 

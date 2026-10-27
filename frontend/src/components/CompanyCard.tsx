@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
 import CompanyForm from './CompanyForm';
 import CommentSection from './CommentSection';
@@ -6,12 +6,22 @@ import ConfirmModal from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { socialLabel } from '../constants/socials';
+import type { Company, CompanyDraft } from '../types';
 
-function formatDate(value) {
+function formatDate(value?: string) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('ru-RU');
+}
+
+interface CompanyCardProps {
+  company: (Company & { industry?: string }) | null;
+  isOpen: boolean;
+  onClose: () => void;
+  industriesCatalog: string[];
+  onAddIndustry: (value: string) => void;
+  onSaved?: () => void;
 }
 
 export default function CompanyCard({
@@ -21,7 +31,7 @@ export default function CompanyCard({
   industriesCatalog,
   onAddIndustry,
   onSaved,
-}) {
+}: CompanyCardProps) {
   const { currentUser } = useAuth();
   const {
     getCommentsForCompany,
@@ -32,16 +42,16 @@ export default function CompanyCard({
     findUserById,
   } = useData();
   const [editing, setEditing] = useState(false);
-  const [selectedContactId, setSelectedContactId] = useState(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  if (!company) return null;
+  if (!company || !currentUser) return null;
 
   const comments = getCommentsForCompany(company.id);
   const occupant = company.occupiedBy ? findUserById(company.occupiedBy) : null;
   const selectedContact = (company.contacts || []).find((c) => c.id === selectedContactId);
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser.role === 'admin';
   const isFree = !company.occupiedBy;
   const isMine = company.occupiedBy === currentUser.id;
   const isBusyByOther = company.occupiedBy && !isMine;
@@ -66,7 +76,7 @@ export default function CompanyCard({
     );
   };
 
-  const handleSave = (data) => {
+  const handleSave = (data: CompanyDraft) => {
     const payload = { ...company, ...data };
     if (currentUser.role === 'admin') {
       directCompanyUpdate(payload, currentUser);

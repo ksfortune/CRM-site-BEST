@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useNavigate, Link } from 'react-router-dom';
+
+interface RegisterForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  bestEmail: string;
+  password: string;
+  confirmPassword: string;
+}
 
 export default function Register() {
   const { addUser } = useData();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<RegisterForm>({
     firstName: '',
     lastName: '',
     email: '',
@@ -13,12 +22,12 @@ export default function Register() {
     password: '',
     confirmPassword: ''
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (!form.firstName.trim()) newErrors.firstName = 'Введите имя';
     if (!form.lastName.trim()) newErrors.lastName = 'Введите фамилию';
     if (!form.email.trim()) {
@@ -37,7 +46,7 @@ export default function Register() {
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
@@ -64,7 +73,7 @@ export default function Register() {
         navigate('/login');
       }, 3000);
     } catch (err) {
-      setErrors({ submit: err.message || 'Ошибка регистрации' });
+      setErrors({ submit: err instanceof Error ? err.message : 'Ошибка регистрации' });
     } finally {
       setIsSubmitting(false);
     }

@@ -44,6 +44,25 @@ a { color: inherit; }
   color: var(--muted);
 }
 
+.app-version {
+  position: fixed;
+  right: 18px;
+  bottom: 14px;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  opacity: 0.38;
+  pointer-events: none;
+  user-select: none;
+}
+
 .topbar {
   width: min(1180px, calc(100% - 32px));
   margin: 18px auto 0;
@@ -116,8 +135,7 @@ a { color: inherit; }
 
 .container,
 .profile-container,
-.admin-container,
-.auth-container {
+.admin-container {
   width: min(1180px, calc(100% - 32px));
   margin: 18px auto 40px;
 }
@@ -143,30 +161,26 @@ a { color: inherit; }
   color: var(--ink);
   font-family: var(--script);
   font-weight: 600;
-}
-
-.search-pill {
   height: 37px;
-  width: 190px;
-  padding: 0 16px;
-  background: #fff;
   font-size: 16px;
 }
 
+.search-pill {
+  width: 190px;
+  padding: 0 16px;
+  background: #fff;
+}
+
 .filter-pill {
-  height: 30px;
   min-width: 100px;
   padding: 0 14px;
   background: #fff;
-  font-size: 13px;
 }
 
 .add-company-btn {
   margin-left: auto;
-  height: 35px;
   padding: 0 16px;
   background: var(--create);
-  font-size: 14px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -243,7 +257,7 @@ a { color: inherit; }
 .company-pill {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) 120px 130px minmax(0, 0.9fr) minmax(150px, 1.2fr);
+  grid-template-columns: minmax(0, 1.7fr) 120px 130px minmax(0, 0.9fr);
   column-gap: 10px;
   align-items: center;
   width: 100%;
@@ -266,15 +280,13 @@ a { color: inherit; }
   z-index: 4;
 }
 
-.company-pill-name,
-.info-slot {
+.company-pill-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 20px;
 }
-
-.company-pill-name { font-size: 20px; }
 
 .status-word.warm { color: var(--warm); }
 .status-word.hot { color: var(--hot); }
@@ -385,18 +397,6 @@ a { color: inherit; }
   font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
-}
-
-button.info-slot {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  text-align: left;
-  padding: 0;
-  cursor: pointer;
 }
 
 .empty-state,
@@ -632,7 +632,17 @@ button.info-slot {
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  margin: 0;
 }
 
 .field-label { display: block; margin-bottom: 6px; }
@@ -759,7 +769,21 @@ button.info-slot {
 .admin-search { max-width: 360px; margin-bottom: 12px; }
 .request-meta, .request-details { margin: 6px 0; }
 
-.auth-container { min-height: calc(100vh - 40px); display: grid; place-items: center; }
+body:has(.auth-container) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.auth-container {
+  width: min(1180px, calc(100% - 32px));
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 24px 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 .auth-card {
   width: min(420px, 100%);
   padding: 28px;
@@ -776,9 +800,15 @@ button.info-slot {
   background-clip: text;
   color: transparent;
 }
-.auth-header p, .auth-footer { color: #d5e7ff; }
+.auth-header { margin-bottom: 16px; }
+.auth-header p { margin: 8px 0 0; color: #d5e7ff; }
+.auth-footer {
+  margin-top: 16px;
+  color: #d5e7ff;
+  text-align: center;
+}
 .auth-error { color: #f6a0a0; margin-bottom: 8px; }
-.auth-button { width: 100%; margin-top: 8px; }
+.auth-button { width: 100%; }
 
 @media (max-width: 900px) {
   .brand { font-size: 36px; }

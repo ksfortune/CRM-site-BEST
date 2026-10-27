@@ -1,5 +1,15 @@
-import React from 'react';
 import Modal from './Modal';
+
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title?: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+}
 
 export default function ConfirmModal({
   isOpen,
@@ -10,7 +20,7 @@ export default function ConfirmModal({
   confirmLabel = 'Подтвердить',
   cancelLabel = 'Отмена',
   danger = false,
-}) {
+}: ConfirmModalProps) {
   return (
     <Modal
       isOpen={isOpen}

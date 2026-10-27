@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import type { Comment } from '../types';
 
-export default function CommentSection({ companyId, comments, occupiedBy }) {
+interface CommentSectionProps {
+  companyId: string;
+  comments: Comment[];
+  occupiedBy: string | null;
+}
+
+export default function CommentSection({ companyId, comments, occupiedBy }: CommentSectionProps) {
   const { currentUser } = useAuth();
   const { addComment } = useData();
   const [text, setText] = useState('');
   const [composing, setComposing] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin';
-  const canComment = isAdmin || occupiedBy === currentUser?.id;
+  const canComment = Boolean(currentUser && (isAdmin || occupiedBy === currentUser.id));
 
   const handleSubmit = () => {
-    if (!canComment) {
-      alert('Вы можете комментировать только занятые вами компании');
-      return;
-    }
+    if (!currentUser || !canComment) return;
     if (text.trim()) {
       addComment(
         companyId,
@@ -45,7 +49,7 @@ export default function CommentSection({ companyId, comments, occupiedBy }) {
         composing ? (
           <div className="comment-compose">
             <textarea
-              rows="3"
+              rows={3}
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Комментарий"

@@ -1,14 +1,39 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react';
 
-function PillMenu({ label, value, options, onChange, footer }) {
+export interface CompanyFilterValues {
+  search: string;
+  status: string;
+  occupied: string;
+  industry: string;
+}
+
+interface PillOption {
+  value: string;
+  label: string;
+}
+
+type PillFooter =
+  | { kind: 'create'; label: string; onCreate: (value: string) => void }
+  | { kind: 'action'; label: string; onClick: () => void };
+
+interface PillMenuProps {
+  label: string;
+  value: string;
+  options: PillOption[];
+  onChange: (value: string) => void;
+  footer?: PillFooter;
+}
+
+function PillMenu({ label, value, options, onChange, footer }: PillMenuProps) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
-  const rootRef = useRef(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return undefined;
-    const close = (event) => {
+    const close = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
       if (!rootRef.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
@@ -39,7 +64,7 @@ function PillMenu({ label, value, options, onChange, footer }) {
             creating ? (
               <form
                 className="pill-dropdown-create"
-                onSubmit={(event) => {
+                onSubmit={(event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
                   const next = draft.trim();
                   if (next) footer.onCreate(next);
@@ -79,6 +104,15 @@ function PillMenu({ label, value, options, onChange, footer }) {
   );
 }
 
+interface CompanyFiltersProps {
+  filters: CompanyFilterValues;
+  setFilters: Dispatch<SetStateAction<CompanyFilterValues>>;
+  industries: string[];
+  onAddCompany: () => void;
+  onAddIndustry: (value: string) => void;
+  onAddUser: () => void;
+}
+
 export default function CompanyFilters({
   filters,
   setFilters,
@@ -86,7 +120,7 @@ export default function CompanyFilters({
   onAddCompany,
   onAddIndustry,
   onAddUser,
-}) {
+}: CompanyFiltersProps) {
   return (
     <div className="filters">
       <input

@@ -1,25 +1,38 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
+import type { UserRole } from '../types';
+
+interface NewUserForm {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  bestEmail: string;
+  role: UserRole;
+}
+
+const EMPTY_NEW_USER: NewUserForm = {
+  email: '',
+  password: '',
+  firstName: '',
+  lastName: '',
+  phone: '',
+  bestEmail: '',
+  role: 'user'
+};
 
 export default function AdminPanel() {
   const { currentUser, logout } = useAuth();
   const { users, companies, requests, approveRequest, rejectRequest, blockUser, transferAdmin, createUserByAdmin } = useData();
-  const [activeTab, setActiveTab] = useState('requests'); // теперь по умолчанию запросы
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [activeTab, setActiveTab] = useState<'requests' | 'users'>('requests');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [transferTargetId, setTransferTargetId] = useState(null);
-  const [newUserForm, setNewUserForm] = useState({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    bestEmail: '',
-    role: 'user'
-  });
+  const [transferTargetId, setTransferTargetId] = useState<string | null>(null);
+  const [newUserForm, setNewUserForm] = useState<NewUserForm>(EMPTY_NEW_USER);
   const [userSearch, setUserSearch] = useState('');
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -36,16 +49,16 @@ export default function AdminPanel() {
   });
 
   const handleTransferAdmin = () => {
-    if (!transferTargetId) return;
+    if (!transferTargetId || !currentUser) return;
     transferAdmin(currentUser.id, transferTargetId);
     logout();
   };
 
-  const getUserCompanies = (userId) => {
+  const getUserCompanies = (userId: string) => {
     return companies.filter(c => c.occupiedBy === userId);
   };
 
-  const handleCreateUser = (e) => {
+  const handleCreateUser = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -82,21 +95,15 @@ export default function AdminPanel() {
       });
       setIsCreateModalOpen(false);
       setActiveTab('users');
-      setNewUserForm({
-        email: '',
-        password: '',
-        firstName: '',
-        lastName: '',
-        phone: '',
-        bestEmail: '',
-        role: 'user',
-      });
+      setNewUserForm(EMPTY_NEW_USER);
       alert('Пользователь создан');
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Не удалось создать пользователя');
+      alert(err instanceof Error ? err.message : 'Не удалось создать пользователя');
     }
   };
+
+  if (!currentUser) return null;
 
   return (
     <div className="admin-container">
@@ -109,29 +116,28 @@ export default function AdminPanel() {
 
       <div className="admin-tabs">
         <button className={activeTab === 'requests' ? 'active' : ''} onClick={() => setActiveTab('requests')}>
-          <span className="tab-icon">🔄</span> Запросы
+          Запросы
           {pendingRequests.length > 0 && <span className="badge">{pendingRequests.length}</span>}
         </button>
         <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
-          <span className="tab-icon">👥</span> Пользователи
+          Пользователи
         </button>
       </div>
 
       <div className="admin-content">
-        {/* Вкладка запросов */}
         {activeTab === 'requests' && (
           <div className="admin-card">
             <h3>Запросы на изменение компаний</h3>
             {pendingRequests.length === 0 ? (
-              <p className="empty-state">📭 Нет активных запросов</p>
+              <p className="empty-state">Нет активных запросов</p>
             ) : (
               <div className="requests-list">
                 {pendingRequests.map(req => (
                   <div key={req.id} className="request-card">
                     <div className="request-type">
-                      {req.type === 'create' && <span className="type-badge create">➕ Создание</span>}
-                      {req.type === 'update' && <span className="type-badge update">✏️ Обновление</span>}
-                      {req.type === 'delete' && <span className="type-badge delete">🗑️ Удаление</span>}
+                      {req.type === 'create' && <span className="type-badge create">Создание</span>}
+                      {req.type === 'update' && <span className="type-badge update">Обновление</span>}
+                      {req.type === 'delete' && <span className="type-badge delete">Удаление</span>}
                     </div>
                     <div className="request-details">
                       {req.type === 'create' && <strong>{req.targetCompany?.name}</strong>}
@@ -142,8 +148,8 @@ export default function AdminPanel() {
                       Запросил: {req.requestedByName} • {new Date(req.createdAt).toLocaleString()}
                     </div>
                     <div className="request-actions">
-                      <button className="btn-approve" onClick={() => approveRequest(req.id, currentUser)}>✅ Принять</button>
-                      <button className="btn-reject" onClick={() => rejectRequest(req.id)}>❌ Отклонить</button>
+                      <button className="btn-approve" onClick={() => approveRequest(req.id, currentUser)}>Принять</button>
+                      <button className="btn-reject" onClick={() => rejectRequest(req.id)}>Отклонить</button>
                     </div>
                   </div>
                 ))}
@@ -152,7 +158,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Вкладка пользователей */}
         {activeTab === 'users' && (
           <div className="admin-card">
             <div className="admin-users-head">
@@ -162,8 +167,8 @@ export default function AdminPanel() {
               </button>
             </div>
             <div className="users-stats">
-              <div className="stat">✅ Активных: {activeUsers.length}</div>
-              <div className="stat">🚫 Заблокированных: {blockedUsers.length}</div>
+              <div className="stat">Активных: {activeUsers.length}</div>
+              <div className="stat">Заблокированных: {blockedUsers.length}</div>
             </div>
             <input
               className="admin-search"
@@ -186,14 +191,13 @@ export default function AdminPanel() {
                     <span className="user-status">{user.isBlocked ? 'Заблокирован' : 'Активен'}</span>
                   </div>
                   <div className="user-info">
-                    {/* Соцсети */}
                     {user.socials && user.socials.length > 0 && (
                       <div className="user-socials">
                         <strong>Соцсети:</strong>
                         <div className="social-links">
                           {user.socials.map((s, idx) => (
                             <a key={idx} href={s.url} target="_blank" rel="noopener noreferrer" className="social-link">
-                              {s.type === 'tg' ? '📱 Telegram' : '📘 VK'}
+                              {s.type === 'tg' ? 'Telegram' : 'VK'}
                             </a>
                           ))}
                         </div>
@@ -216,14 +220,14 @@ export default function AdminPanel() {
                     <button className="btn-view" onClick={() => setSelectedUserId(selectedUserId === user.id ? null : user.id)}>
                       {selectedUserId === user.id ? 'Скрыть компании' : 'Показать компании'}
                     </button>
-                    {user.id !== currentUser?.id && user.role !== 'admin' && (
+                    {user.id !== currentUser.id && user.role !== 'admin' && (
                       <button className="btn-block" onClick={() => blockUser(user.id, !user.isBlocked)}>
-                        {user.isBlocked ? '🔓 Разблокировать' : '🔒 Заблокировать'}
+                        {user.isBlocked ? 'Разблокировать' : 'Заблокировать'}
                       </button>
                     )}
-                    {user.role !== 'admin' && user.id !== currentUser?.id && !user.isBlocked && (
+                    {user.role !== 'admin' && user.id !== currentUser.id && !user.isBlocked && (
                       <button className="btn-transfer" onClick={() => setTransferTargetId(user.id)}>
-                        👑 Сделать главным админом
+                        Сделать главным админом
                       </button>
                     )}
                   </div>
@@ -234,7 +238,6 @@ export default function AdminPanel() {
         )}
       </div>
 
-      {/* Модальное окно создания пользователя */}
       <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Добавить человека" className="modal-edit">
         <form onSubmit={handleCreateUser} className="create-user-form">
           <input
@@ -279,7 +282,7 @@ export default function AdminPanel() {
           />
           <select
             value={newUserForm.role}
-            onChange={e => setNewUserForm({...newUserForm, role: e.target.value})}
+            onChange={e => setNewUserForm({...newUserForm, role: e.target.value === 'admin' ? 'admin' : 'user'})}
           >
             <option value="user">Пользователь</option>
             <option value="admin">Администратор (полные права)</option>

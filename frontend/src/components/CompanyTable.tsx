@@ -1,15 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { Company } from '../types';
 
-function CompanyRow({ company, onOpenCompany, onOccupy }) {
+type CompanyRowData = Company & { industry?: string };
+
+interface CompanyRowProps {
+  company: CompanyRowData;
+  onOpenCompany: (company: Company) => void;
+  onOccupy: (company: Company) => void;
+}
+
+function CompanyRow({ company, onOpenCompany, onOccupy }: CompanyRowProps) {
   const [industriesOpen, setIndustriesOpen] = useState(false);
-  const industryRef = useRef(null);
+  const industryRef = useRef<HTMLSpanElement>(null);
   const industries = company.industries || (company.industry ? [company.industry] : []);
   const extraIndustries = industries.slice(1);
   const occupantName = company.occupiedByName || 'Занято';
 
   useEffect(() => {
     if (!industriesOpen) return undefined;
-    const close = (event) => {
+    const close = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
       if (!industryRef.current?.contains(event.target)) setIndustriesOpen(false);
     };
     document.addEventListener('mousedown', close);
@@ -74,21 +84,17 @@ function CompanyRow({ company, onOpenCompany, onOccupy }) {
           </span>
         )}
       </span>
-      <button
-        type="button"
-        className="info-slot"
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenCompany(company);
-        }}
-      >
-        Информация о компании
-      </button>
     </div>
   );
 }
 
-export default function CompanyTable({ companies, onOpenCompany, onOccupy }) {
+interface CompanyTableProps {
+  companies: CompanyRowData[];
+  onOpenCompany: (company: Company) => void;
+  onOccupy: (company: Company) => void;
+}
+
+export default function CompanyTable({ companies, onOpenCompany, onOccupy }: CompanyTableProps) {
   return (
     <div className="company-list">
       {companies.map((company) => (

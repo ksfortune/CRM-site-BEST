@@ -1,11 +1,17 @@
-import React from 'react';
 import { SOCIAL_TYPES } from '../constants/socials';
+import type { SocialChannel } from '../types';
+
+interface SocialChipsProps {
+  channels?: SocialChannel[];
+  onChange: (channels: SocialChannel[]) => void;
+  allowValues?: boolean;
+}
 
 /** Bitrix-style social chips: toggle types, optional values per type */
-export default function SocialChips({ channels = [], onChange, allowValues = true }) {
+export default function SocialChips({ channels = [], onChange, allowValues = true }: SocialChipsProps) {
   const active = new Set(channels.map((c) => c.type));
 
-  const toggle = (type) => {
+  const toggle = (type: string) => {
     if (active.has(type)) {
       onChange(channels.filter((c) => c.type !== type));
     } else {
@@ -13,7 +19,7 @@ export default function SocialChips({ channels = [], onChange, allowValues = tru
     }
   };
 
-  const setValue = (type, value) => {
+  const setValue = (type: string, value: string) => {
     onChange(channels.map((c) => (c.type === type ? { ...c, value } : c)));
   };
 
@@ -47,11 +53,11 @@ export default function SocialChips({ channels = [], onChange, allowValues = tru
   );
 }
 
-function socialLabel(type) {
+function socialLabel(type: string): string {
   return SOCIAL_TYPES.find((t) => t.id === type)?.label || type;
 }
 
-function placeholderFor(type) {
+function placeholderFor(type: string): string {
   switch (type) {
     case 'tg':
       return '@username или ссылка';

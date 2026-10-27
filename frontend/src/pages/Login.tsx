@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -18,7 +18,7 @@ export default function Login() {
       await login(email, password);
       navigate('/companies');
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Неверный email или пароль');
     } finally {
       setIsLoading(false);
     }

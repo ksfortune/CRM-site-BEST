@@ -1,8 +1,18 @@
-import React, { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md', footer, className = '' }) {
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  footer?: ReactNode;
+  className?: string;
+}
+
+export default function Modal({ isOpen, onClose, title, children, size = 'md', footer, className = '' }: ModalProps) {
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     if (isOpen) {

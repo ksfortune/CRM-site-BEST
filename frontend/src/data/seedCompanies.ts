@@ -1,6 +1,8 @@
+import type { Company } from '../types';
+
 const CREATED_AT = '2026-01-01T00:00:00.000Z';
 
-export const SEED_COMPANIES = [
+export const SEED_COMPANIES: Company[] = [
   {
     id: 'tpl-01',
     name: 'Северная логистика',
@@ -206,8 +208,9 @@ export const SEED_COMPANIES = [
 
 const DEMO_OCCUPIED_IDS = new Set(['tpl-02', 'tpl-03']);
 
-export function applyDemoOccupancy(list) {
-  return (Array.isArray(list) ? list : []).map((company) => {
+export function applyDemoOccupancy(list: unknown): Company[] {
+  const companies = (Array.isArray(list) ? list : []) as Company[];
+  return companies.map((company) => {
     if (!DEMO_OCCUPIED_IDS.has(company.id) || company.demoOccupancyApplied) return company;
     if (company.occupiedBy) return { ...company, demoOccupancyApplied: true };
     return {
@@ -219,8 +222,8 @@ export function applyDemoOccupancy(list) {
   });
 }
 
-export function mergeSeedCompanies(list) {
-  const companies = Array.isArray(list) ? list : [];
+export function mergeSeedCompanies(list: unknown): Company[] {
+  const companies = (Array.isArray(list) ? list : []) as Company[];
   const ids = new Set(companies.map((c) => c.id));
   const missing = SEED_COMPANIES.filter((c) => !ids.has(c.id));
   if (!missing.length) return companies;

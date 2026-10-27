@@ -1,8 +1,47 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import { applyDemoOccupancy, mergeSeedCompanies } from '../data/seedCompanies';
+import type {
+  ChangeRequest,
+  ChangeRequestType,
+  Comment,
+  Company,
+  CompanyDraft,
+  Contact,
+  CreateUserInput,
+  SocialChannel,
+  User,
+  UserSocial,
+} from '../types';
 
-const DataContext = createContext();
+interface DataContextValue {
+  users: User[];
+  companies: Company[];
+  requests: ChangeRequest[];
+  findUserById: (id: string) => User | undefined;
+  requestCompanyChange: (type: ChangeRequestType, data: CompanyDraft, currentUser: User) => ChangeRequest;
+  approveRequest: (requestId: string, adminUser: User) => boolean;
+  rejectRequest: (requestId: string) => void;
+  directCompanyUpdate: (companyData: CompanyDraft, adminUser: User, isDelete?: boolean) => void;
+  occupyCompany: (companyId: string, userId: string, userName: string) => void;
+  releaseCompany: (companyId: string) => void;
+  addComment: (companyId: string, userId: string, userName: string, text: string) => void;
+  getCommentsForCompany: (companyId: string) => Comment[];
+  addUser: (userData: Partial<User>) => void;
+  approveUser: (userId: string) => void;
+  blockUser: (userId: string, blocked: boolean) => void;
+  updateUser: (userId: string, updates: Partial<User>) => void;
+  transferAdmin: (fromAdminId: string, toUserId: string) => void;
+  createUserByAdmin: (userData: CreateUserInput) => User;
+}
+
+type StoredUser = Partial<User> & {
+  id?: string;
+  email?: string;
+  role?: string;
+};
+
+const DataContext = createContext<DataContextValue | null>(null);
 
 const STORAGE_KEYS = {
   USERS: 'warmcontacts_users',
@@ -11,7 +50,7 @@ const STORAGE_KEYS = {
   REQUESTS: 'warmcontacts_requests'
 };
 
-const DEFAULT_ADMIN = {
+const DEFAULT_ADMIN: User = {
   id: 'admin-default',
   email: 'admin@admin.com',
   password: 'admin',
@@ -26,7 +65,7 @@ const DEFAULT_ADMIN = {
   createdAt: new Date().toISOString()
 };
 
-const DEFAULT_USER = {
+const DEFAULT_USER: User = {
   id: 'user-default',
   email: 'user@user.com',
   password: 'user',
@@ -41,7 +80,7 @@ const DEFAULT_USER = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-const NASTYA_USER = {
+const NASTYA_USER: User = {
   id: 'user-nastya',
   email: 'nastya@shedrina.com',
   password: 'nastya',
@@ -56,8 +95,13 @@ const NASTYA_USER = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-function ensureAdminUser(list) {
-  const users = Array.isArray(list) ? list : [];
+function toStoredUsers(value: unknown): StoredUser[] {
+  if (!Array.isArray(value)) return [];
+  return value as StoredUser[];
+}
+
+function ensureAdminUser(list: unknown): User[] {
+  const users = toStoredUsers(list);
   const hasAdmin = users.some(
     (u) => u.email === 'admin@admin.com' || u.id === DEFAULT_ADMIN.id || u.email === 'admin'
   );
@@ -69,20 +113,20 @@ function ensureAdminUser(list) {
             ...u,
             email: 'admin@admin.com',
             password: u.password === 'admin' || !u.password ? 'admin' : u.password,
-            role: 'admin',
+            role: 'admin' as const,
             isApproved: true,
             isBlocked: false,
             phone: u.phone || '',
           }
         : { ...u, phone: u.phone || '', socials: u.socials || [] }
-    );
+    ) as User[];
   }
-  return [DEFAULT_ADMIN, ...users.map((u) => ({ ...u, phone: u.phone || '', socials: u.socials || [] }))];
+  return [DEFAULT_ADMIN, ...users.map((u) => ({ ...u, phone: u.phone || '', socials: u.socials || [] } as User))];
 }
 
-function ensureTemplateUser(list) {
-  const users = Array.isArray(list) ? list : [];
-  const isTemplate = (u) => u.email === 'user@user.com' || u.id === DEFAULT_USER.id;
+function ensureTemplateUser(list: unknown): User[] {
+  const users = toStoredUsers(list);
+  const isTemplate = (u: StoredUser) => u.email === 'user@user.com' || u.id === DEFAULT_USER.id;
   if (users.some(isTemplate)) {
     return users.map((u) =>
       isTemplate(u)
@@ -91,21 +135,21 @@ function ensureTemplateUser(list) {
             ...u,
             email: 'user@user.com',
             password: u.password || 'user',
-            role: u.role === 'admin' ? 'admin' : 'user',
+            role: u.role === 'admin' ? 'admin' as const : 'user' as const,
             isApproved: true,
             isBlocked: false,
             phone: u.phone || DEFAULT_USER.phone,
             socials: u.socials || [],
           }
         : u
-    );
+    ) as User[];
   }
-  return [...users, DEFAULT_USER];
+  return [...users, DEFAULT_USER] as User[];
 }
 
-function ensureNastyaUser(list) {
-  const users = Array.isArray(list) ? list : [];
-  const isNastya = (u) =>
+function ensureNastyaUser(list: unknown): User[] {
+  const users = toStoredUsers(list);
+  const isNastya = (u: StoredUser) =>
     (u.email || '').toLowerCase() === NASTYA_USER.email || u.id === NASTYA_USER.id;
   if (users.some(isNastya)) {
     return users.map((u) =>
@@ -119,24 +163,26 @@ function ensureNastyaUser(list) {
             lastName: u.lastName || NASTYA_USER.lastName,
             isApproved: true,
             isBlocked: false,
-            role: u.role === 'admin' ? 'admin' : 'user',
+            role: u.role === 'admin' ? 'admin' as const : 'user' as const,
             phone: u.phone || '',
             socials: u.socials || [],
           }
         : u
-    );
+    ) as User[];
   }
-  return [...users, NASTYA_USER];
+  return [...users, NASTYA_USER] as User[];
 }
 
-function migrateCompany(c) {
-  if (!c) return c;
+function migrateCompany(c: null | undefined): null;
+function migrateCompany(c: CompanyDraft): Company;
+function migrateCompany(c: CompanyDraft | null | undefined): Company | null {
+  if (!c) return null;
   const industries = c.industries || (c.industry ? [c.industry] : []);
-  let contacts = c.contacts;
+  let contacts = c.contacts as Contact[] | undefined;
   if (!contacts) {
     contacts = [];
     if (c.repName || c.phone || c.messenger || c.email || c.website) {
-      const channels = [];
+      const channels: SocialChannel[] = [];
       if (c.phone) channels.push({ type: 'phone', value: c.phone });
       if (c.messenger) channels.push({ type: 'tg', value: c.messenger });
       if (c.email) channels.push({ type: 'email', value: c.email });
@@ -150,41 +196,47 @@ function migrateCompany(c) {
       });
     }
   }
-  return { ...c, industries, contacts };
+  return { ...c, industries, contacts } as Company;
 }
 
-export function DataProvider({ children }) {
-  const [users, setUsers] = useState(() => {
+function loadCompanies(): Company[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.COMPANIES);
+    if (stored) {
+      return applyDemoOccupancy(
+        mergeSeedCompanies(JSON.parse(stored) as unknown).map((company) => migrateCompany(company))
+      );
+    }
+  } catch (e) {
+    console.error('Failed to read companies', e);
+  }
+  return applyDemoOccupancy(mergeSeedCompanies([]).map((company) => migrateCompany(company)));
+}
+
+export function DataProvider({ children }: { children: ReactNode }) {
+  const [users, setUsers] = useState<User[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-      if (stored) return ensureNastyaUser(ensureTemplateUser(ensureAdminUser(JSON.parse(stored))));
+      if (stored) return ensureNastyaUser(ensureTemplateUser(ensureAdminUser(JSON.parse(stored) as unknown)));
     } catch (e) {
       console.error('Failed to read users', e);
     }
     return ensureNastyaUser(ensureTemplateUser(ensureAdminUser([])));
   });
-  const [companies, setCompanies] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.COMPANIES);
-      if (stored) return applyDemoOccupancy(mergeSeedCompanies(JSON.parse(stored)).map(migrateCompany));
-    } catch (e) {
-      console.error('Failed to read companies', e);
-    }
-    return applyDemoOccupancy(mergeSeedCompanies([]).map(migrateCompany));
-  });
-  const [comments, setComments] = useState(() => {
+  const [companies, setCompanies] = useState<Company[]>(loadCompanies);
+  const [comments, setComments] = useState<Comment[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-      if (stored) return JSON.parse(stored);
+      if (stored) return JSON.parse(stored) as Comment[];
     } catch (e) {
       console.error('Failed to read comments', e);
     }
     return [];
   });
-  const [requests, setRequests] = useState(() => {
+  const [requests, setRequests] = useState<ChangeRequest[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.REQUESTS);
-      if (stored) return JSON.parse(stored);
+      if (stored) return JSON.parse(stored) as ChangeRequest[];
     } catch (e) {
       console.error('Failed to read requests', e);
     }
@@ -204,10 +256,10 @@ export function DataProvider({ children }) {
     localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(requests));
   }, [requests]);
 
-  const findUserById = (id) => users.find((u) => u.id === id);
+  const findUserById = (id: string) => users.find((u) => u.id === id);
 
-  const requestCompanyChange = (type, data, currentUser) => {
-    const newRequest = {
+  const requestCompanyChange = (type: ChangeRequestType, data: CompanyDraft, currentUser: User) => {
+    const newRequest: ChangeRequest = {
       id: uuid(),
       type,
       companyId: data.id || null,
@@ -221,14 +273,14 @@ export function DataProvider({ children }) {
     return newRequest;
   };
 
-  const createUserByAdmin = (userData) => {
+  const createUserByAdmin = (userData: CreateUserInput): User => {
     const email = (userData.email || '').trim().toLowerCase();
     if (!email) throw new Error('Email обязателен');
     if (users.some((u) => (u.email || '').toLowerCase() === email)) {
       throw new Error('Пользователь с таким email уже существует');
     }
     const newUser = {
-      socials: [],
+      socials: [] as UserSocial[],
       phone: '',
       bestEmail: email,
       ...userData,
@@ -238,33 +290,35 @@ export function DataProvider({ children }) {
       isApproved: true,
       role: userData.role || 'user',
       createdAt: new Date().toISOString(),
-    };
+    } as User;
     setUsers((prev) => [...prev, newUser]);
     return newUser;
   };
 
-  const approveRequest = (requestId, adminUser) => {
+  const approveRequest = (requestId: string, adminUser: User) => {
     const request = requests.find((r) => r.id === requestId);
     if (!request || request.status !== 'pending') return false;
     if (request.type === 'create') {
+      const target = request.targetCompany ? migrateCompany(request.targetCompany) : null;
       const newCompany = {
-        ...migrateCompany(request.targetCompany),
+        ...(target ?? {}),
         id: uuid(),
         createdBy: adminUser.id,
         updatedBy: adminUser.id,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      };
+      } as Company;
       setCompanies((prev) => [...prev, newCompany]);
     } else if (request.type === 'update') {
+      const target = request.targetCompany ? migrateCompany(request.targetCompany) : null;
       setCompanies((prev) =>
         prev.map((c) =>
           c.id === request.companyId
             ? {
-                ...migrateCompany(request.targetCompany),
+                ...(target ?? {}),
                 updatedBy: adminUser.id,
                 updatedAt: new Date().toISOString(),
-              }
+              } as Company
             : c
         )
       );
@@ -277,13 +331,13 @@ export function DataProvider({ children }) {
     return true;
   };
 
-  const rejectRequest = (requestId) => {
+  const rejectRequest = (requestId: string) => {
     setRequests((prev) =>
       prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected' } : r))
     );
   };
 
-  const directCompanyUpdate = (companyData, adminUser, isDelete = false) => {
+  const directCompanyUpdate = (companyData: CompanyDraft, adminUser: User, isDelete = false) => {
     if (isDelete) {
       setCompanies((prev) => prev.filter((c) => c.id !== companyData.id));
     } else {
@@ -316,14 +370,14 @@ export function DataProvider({ children }) {
     }
   };
 
-  const occupyCompany = (companyId, userId, userName) => {
+  const occupyCompany = (companyId: string, userId: string, userName: string) => {
     setCompanies((prev) =>
       prev.map((c) =>
         c.id === companyId ? { ...c, occupiedBy: userId, occupiedByName: userName } : c
       )
     );
   };
-  const releaseCompany = (companyId) => {
+  const releaseCompany = (companyId: string) => {
     setCompanies((prev) =>
       prev.map((c) =>
         c.id === companyId ? { ...c, occupiedBy: null, occupiedByName: null } : c
@@ -331,7 +385,7 @@ export function DataProvider({ children }) {
     );
   };
 
-  const addComment = (companyId, userId, userName, text) => {
+  const addComment = (companyId: string, userId: string, userName: string, text: string) => {
     setComments((prev) => [
       ...prev,
       {
@@ -344,12 +398,12 @@ export function DataProvider({ children }) {
       },
     ]);
   };
-  const getCommentsForCompany = (companyId) =>
+  const getCommentsForCompany = (companyId: string) =>
     comments
       .filter((c) => c.companyId === companyId)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  const addUser = (userData) => {
+  const addUser = (userData: Partial<User>) => {
     setUsers((prev) => [
       ...prev,
       {
@@ -361,19 +415,19 @@ export function DataProvider({ children }) {
         phone: userData.phone || '',
         socials: userData.socials || [],
         createdAt: new Date().toISOString(),
-      },
+      } as User,
     ]);
   };
-  const approveUser = (userId) => {
+  const approveUser = (userId: string) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isApproved: true } : u)));
   };
-  const blockUser = (userId, blocked) => {
+  const blockUser = (userId: string, blocked: boolean) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isBlocked: blocked } : u)));
   };
-  const updateUser = (userId, updates) => {
+  const updateUser = (userId: string, updates: Partial<User>) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...updates } : u)));
   };
-  const transferAdmin = (fromAdminId, toUserId) => {
+  const transferAdmin = (fromAdminId: string, toUserId: string) => {
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === fromAdminId) return { ...u, role: 'user' };
@@ -383,7 +437,7 @@ export function DataProvider({ children }) {
     );
   };
 
-  const value = {
+  const value: DataContextValue = {
     users,
     companies,
     requests,
@@ -407,6 +461,10 @@ export function DataProvider({ children }) {
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
-export function useData() {
-  return useContext(DataContext);
+export function useData(): DataContextValue {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error('useData должен вызываться внутри DataProvider');
+  }
+  return context;
 }

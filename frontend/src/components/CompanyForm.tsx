@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { v4 as uuid } from 'uuid';
 import SocialChips from './SocialChips';
+import type { CompanyDraft, CompanyStatus, Contact, SocialChannel } from '../types';
 
-const emptyContact = () => ({
+interface CompanyFormState {
+  name: string;
+  industries: string[];
+  status: CompanyStatus;
+  contacts: Contact[];
+}
+
+const emptyContact = (): Contact => ({
   id: uuid(),
   name: '',
   nickname: '',
@@ -10,12 +18,20 @@ const emptyContact = () => ({
   channels: [],
 });
 
-export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry, onCancel, initialData }) {
-  const [form, setForm] = useState(() => normalizeInitial(initialData));
+interface CompanyFormProps {
+  onSubmit: (data: CompanyFormState & CompanyDraft) => void;
+  industriesCatalog: string[];
+  onAddIndustry: (value: string) => void;
+  onCancel: () => void;
+  initialData?: CompanyDraft | null;
+}
+
+export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry, onCancel, initialData }: CompanyFormProps) {
+  const [form, setForm] = useState<CompanyFormState & CompanyDraft>(() => normalizeInitial(initialData));
   const [newIndustry, setNewIndustry] = useState('');
   const [showNewIndustry, setShowNewIndustry] = useState(false);
 
-  const toggleIndustry = (ind) => {
+  const toggleIndustry = (ind: string) => {
     setForm((prev) => {
       const has = prev.industries.includes(ind);
       return {
@@ -37,21 +53,21 @@ export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry
     setShowNewIndustry(false);
   };
 
-  const updateContact = (idx, patch) => {
+  const updateContact = (idx: number, patch: Partial<Contact>) => {
     setForm((prev) => ({
       ...prev,
       contacts: prev.contacts.map((c, i) => (i === idx ? { ...c, ...patch } : c)),
     }));
   };
 
-  const removeContact = (idx) => {
+  const removeContact = (idx: number) => {
     setForm((prev) => ({
       ...prev,
       contacts: prev.contacts.filter((_, i) => i !== idx),
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.name.trim()) {
       alert('Название обязательно');
@@ -121,7 +137,10 @@ export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry
 
       <div className="form-section">
         <label className="field-label">Статус</label>
-        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+        <select
+          value={form.status}
+          onChange={(e) => setForm({ ...form, status: e.target.value === 'hot' ? 'hot' : 'warm' })}
+        >
           <option value="warm">Тёплый</option>
           <option value="hot">Горячий</option>
         </select>
@@ -163,7 +182,7 @@ export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry
             <label className="field-label subtle">Способы связи</label>
             <SocialChips
               channels={contact.channels || []}
-              onChange={(channels) => updateContact(idx, { channels })}
+              onChange={(channels: SocialChannel[]) => updateContact(idx, { channels })}
             />
             <button type="button" className="remove-contact-btn" onClick={() => removeContact(idx)}>
               Удалить контакт
@@ -184,7 +203,7 @@ export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry
   );
 }
 
-function normalizeInitial(data) {
+function normalizeInitial(data?: CompanyDraft | null): CompanyFormState & CompanyDraft {
   if (!data) {
     return {
       name: '',
@@ -193,11 +212,12 @@ function normalizeInitial(data) {
       contacts: [],
     };
   }
+  const status: CompanyStatus = data.status === 'hot' ? 'hot' : 'warm';
   return {
     ...data,
     name: data.name || '',
     industries: data.industries || (data.industry ? [data.industry] : []),
-    status: data.status || 'warm',
+    status,
     contacts: (data.contacts || []).map((c) => ({
       id: c.id || uuid(),
       name: c.name || '',

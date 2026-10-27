@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import PrivateRoute from './components/PrivateRoute';
+import AppVersion from './components/AppVersion';
 import Login from './pages/Login';
 import Companies from './pages/Companies';
 import Profile from './pages/Profile';
@@ -60,6 +61,7 @@ function AppContent() {
         <Route path="/admin" element={<PrivateRoute adminOnly><AdminPanel /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/companies" />} />
       </Routes>
+      <AppVersion />
     </>
   );
 }

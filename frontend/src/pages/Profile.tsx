@@ -1,35 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { Link } from 'react-router-dom';
 import SocialChips from '../components/SocialChips';
 import Modal from '../components/Modal';
+import type { SocialChannel, UserSocial } from '../types';
 
 export default function Profile() {
   const { currentUser, updateProfile, changePassword } = useAuth();
   const { companies } = useData();
-  const [phone, setPhone] = useState(currentUser.phone || '');
-  const [socials, setSocials] = useState(currentUser.socials || []);
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [socials, setSocials] = useState<UserSocial[]>(currentUser?.socials || []);
   const [oldPass, setOldPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-  const [message, setMessage] = useState({ text: '', type: '' });
+  const [message, setMessage] = useState<{ text: string; type: '' | 'success' | 'error' }>({ text: '', type: '' });
   const [dirty, setDirty] = useState(false);
   const [socialsOpen, setSocialsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
 
-  const myCompanies = companies.filter((c) => c.occupiedBy === currentUser.id);
-
   useEffect(() => {
-    setPhone(currentUser.phone || '');
-    setSocials(currentUser.socials || []);
+    setPhone(currentUser?.phone || '');
+    setSocials(currentUser?.socials || []);
     setDirty(false);
   }, [currentUser]);
 
-  const channelsFromSocials = (list) =>
+  if (!currentUser) return null;
+
+  const myCompanies = companies.filter((c) => c.occupiedBy === currentUser.id);
+
+  const channelsFromSocials = (list: UserSocial[]): SocialChannel[] =>
     (list || []).map((s) => ({ type: s.type, value: s.url || s.value || '' }));
 
-  const socialsFromChannels = (channels) =>
+  const socialsFromChannels = (channels: SocialChannel[]): UserSocial[] =>
     channels.map((c) => ({ type: c.type, url: c.value || '' }));
 
   const saveProfile = async () => {
@@ -39,11 +42,11 @@ export default function Profile() {
       setDirty(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (err) {
-      setMessage({ text: err.message, type: 'error' });
+      setMessage({ text: err instanceof Error ? err.message : 'Не удалось обновить профиль', type: 'error' });
     }
   };
 
-  const handlePasswordChange = async (e) => {
+  const handlePasswordChange = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
       setMessage({ text: 'Новые пароли не совпадают', type: 'error' });
@@ -61,7 +64,7 @@ export default function Profile() {
       setConfirmPass('');
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (err) {
-      setMessage({ text: err.message, type: 'error' });
+      setMessage({ text: err instanceof Error ? err.message : 'Не удалось изменить пароль', type: 'error' });
     }
   };
 
