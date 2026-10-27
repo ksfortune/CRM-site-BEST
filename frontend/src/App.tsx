@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import { ErrorToastProvider } from './contexts/ErrorToastContext';
 import PrivateRoute from './components/PrivateRoute';
 import AppVersion from './components/AppVersion';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Companies from './pages/Companies';
 import Profile from './pages/Profile';
@@ -69,11 +71,15 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <DataProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </DataProvider>
+      <ErrorToastProvider>
+        <ErrorBoundary>
+          <DataProvider>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </DataProvider>
+        </ErrorBoundary>
+      </ErrorToastProvider>
     </BrowserRouter>
   );
 }

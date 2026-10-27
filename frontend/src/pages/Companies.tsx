@@ -6,6 +6,7 @@ import CompanyFilters, { type CompanyFilterValues } from '../components/CompanyF
 import CompanyForm from '../components/CompanyForm';
 import CompanyCard from '../components/CompanyCard';
 import Modal from '../components/Modal';
+import { logHandledError } from '../utils/errors';
 import type { Company, CompanyDraft, CreateUserInput } from '../types';
 
 const EMPTY_USER = { firstName: '', lastName: '', email: '', password: '' };
@@ -81,6 +82,7 @@ export default function Companies() {
       setUserError('');
       setIsUserOpen(false);
     } catch (error) {
+      logHandledError(error, 'Create user rejected');
       setUserError(error instanceof Error ? error.message : 'Не удалось создать пользователя');
     }
   };

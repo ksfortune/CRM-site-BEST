@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { logHandledError } from '../utils/errors';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ export default function Login() {
       await login(email, password);
       navigate('/companies');
     } catch (err) {
+      logHandledError(err, 'Login rejected');
       setError(err instanceof Error ? err.message : 'Неверный email или пароль');
     } finally {
       setIsLoading(false);

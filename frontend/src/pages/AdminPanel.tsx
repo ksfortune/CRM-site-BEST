@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
+import { reportActionError } from '../utils/errors';
 import type { UserRole } from '../types';
 
 interface NewUserForm {
@@ -98,8 +99,7 @@ export default function AdminPanel() {
       setNewUserForm(EMPTY_NEW_USER);
       alert('Пользователь создан');
     } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'Не удалось создать пользователя');
+      reportActionError(err, 'Failed to create user');
     }
   };
 

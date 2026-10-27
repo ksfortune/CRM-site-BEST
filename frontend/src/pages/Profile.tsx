@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext';
 import { Link } from 'react-router-dom';
 import SocialChips from '../components/SocialChips';
 import Modal from '../components/Modal';
+import { reportActionError } from '../utils/errors';
 import type { SocialChannel, UserSocial } from '../types';
 
 export default function Profile() {
@@ -42,7 +43,7 @@ export default function Profile() {
       setDirty(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (err) {
-      setMessage({ text: err instanceof Error ? err.message : 'Не удалось обновить профиль', type: 'error' });
+      reportActionError(err, 'Failed to update profile');
     }
   };
 
@@ -64,7 +65,7 @@ export default function Profile() {
       setConfirmPass('');
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (err) {
-      setMessage({ text: err instanceof Error ? err.message : 'Не удалось изменить пароль', type: 'error' });
+      reportActionError(err, 'Failed to change password');
     }
   };
 

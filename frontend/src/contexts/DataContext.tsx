@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import { applyDemoOccupancy, mergeSeedCompanies } from '../data/seedCompanies';
+import { logHandledError } from '../utils/errors';
 import type {
   ChangeRequest,
   ChangeRequestType,
@@ -208,7 +209,7 @@ function loadCompanies(): Company[] {
       );
     }
   } catch (e) {
-    console.error('Failed to read companies', e);
+    logHandledError(e, 'Failed to read companies');
   }
   return applyDemoOccupancy(mergeSeedCompanies([]).map((company) => migrateCompany(company)));
 }
@@ -219,7 +220,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEYS.USERS);
       if (stored) return ensureNastyaUser(ensureTemplateUser(ensureAdminUser(JSON.parse(stored) as unknown)));
     } catch (e) {
-      console.error('Failed to read users', e);
+      logHandledError(e, 'Failed to read users');
     }
     return ensureNastyaUser(ensureTemplateUser(ensureAdminUser([])));
   });
@@ -229,7 +230,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEYS.COMMENTS);
       if (stored) return JSON.parse(stored) as Comment[];
     } catch (e) {
-      console.error('Failed to read comments', e);
+      logHandledError(e, 'Failed to read comments');
     }
     return [];
   });
@@ -238,7 +239,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEYS.REQUESTS);
       if (stored) return JSON.parse(stored) as ChangeRequest[];
     } catch (e) {
-      console.error('Failed to read requests', e);
+      logHandledError(e, 'Failed to read requests');
     }
     return [];
   });

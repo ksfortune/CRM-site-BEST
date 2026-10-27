@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { logHandledError } from '../utils/errors';
 
 interface RegisterForm {
   firstName: string;
@@ -73,6 +74,7 @@ export default function Register() {
         navigate('/login');
       }, 3000);
     } catch (err) {
+      logHandledError(err, 'Registration rejected');
       setErrors({ submit: err instanceof Error ? err.message : 'Ошибка регистрации' });
     } finally {
       setIsSubmitting(false);
