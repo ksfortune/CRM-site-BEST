@@ -36,14 +36,34 @@ function PillMenu({ label, value, options, onChange, footer }: PillMenuProps) {
       if (!(event.target instanceof Node)) return;
       if (!rootRef.current?.contains(event.target)) setOpen(false);
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
   }, [open]);
+
+  const isActive = value !== '';
+  const current = options.find((opt) => opt.value === value);
+  const buttonText = isActive ? `${label}: ${current?.label ?? value}` : label;
 
   return (
     <div className="pill-menu" ref={rootRef}>
-      <button type="button" className="filter-pill" onClick={() => setOpen((v) => !v)}>
-        {label}
+      <button
+        type="button"
+        className={`filter-pill${isActive ? ' active' : ''}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {buttonText}
+        <svg className="chevron" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {open && (
         <div className="pill-dropdown">
@@ -76,7 +96,7 @@ function PillMenu({ label, value, options, onChange, footer }: PillMenuProps) {
                 <input
                   autoFocus
                   value={draft}
-                  placeholder="Название"
+                  placeholder="Название, затем Enter"
                   onChange={(event) => setDraft(event.target.value)}
                 />
               </form>
@@ -108,27 +128,37 @@ interface CompanyFiltersProps {
   filters: CompanyFilterValues;
   setFilters: Dispatch<SetStateAction<CompanyFilterValues>>;
   industries: string[];
-  onAddCompany: () => void;
   onAddIndustry: (value: string) => void;
-  onAddUser: () => void;
+}
+
+export const EMPTY_FILTERS: CompanyFilterValues = { search: '', status: '', occupied: '', industry: '' };
+
+export function hasActiveFilters(filters: CompanyFilterValues): boolean {
+  return Boolean(filters.search || filters.status || filters.occupied || filters.industry);
 }
 
 export default function CompanyFilters({
   filters,
   setFilters,
   industries,
-  onAddCompany,
   onAddIndustry,
-  onAddUser,
 }: CompanyFiltersProps) {
   return (
-    <div className="filters">
-      <input
-        className="search-pill"
-        placeholder="Поиск компаний"
-        value={filters.search}
-        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-      />
+    <div className="filters" role="search">
+      <label className="search-field">
+        <svg className="search-icon" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="m13.2 13.2 3.8 3.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+        <input
+          className="search-pill"
+          type="search"
+          placeholder="Поиск по названию компании"
+          aria-label="Поиск компании по названию"
+          value={filters.search}
+          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+        />
+      </label>
       <PillMenu
         label="Статус"
         value={filters.status}
@@ -148,7 +178,6 @@ export default function CompanyFilters({
           { value: 'busy', label: 'Занято' },
           { value: 'free', label: 'Свободно' },
         ]}
-        footer={{ kind: 'action', label: 'Добавить юзера', onClick: onAddUser }}
       />
       <PillMenu
         label="Сферы"
@@ -160,10 +189,11 @@ export default function CompanyFilters({
         ]}
         footer={{ kind: 'create', label: 'Добавить сферу', onCreate: onAddIndustry }}
       />
-      <button type="button" className="add-company-btn" onClick={onAddCompany}>
-        <span className="plus-icon" aria-hidden="true">+</span>
-        Создать компанию
-      </button>
+      {hasActiveFilters(filters) && (
+        <button type="button" className="filters-reset" onClick={() => setFilters(EMPTY_FILTERS)}>
+          Сбросить фильтры
+        </button>
+      )}
     </div>
   );
 }

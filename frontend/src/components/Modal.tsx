@@ -36,7 +36,13 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', f
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className={`modal-container ${sizeClass} ${className}`.trim()} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`modal-container ${sizeClass} ${className}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           {title ? <h3>{title}</h3> : <span />}
           <button type="button" className="modal-close" onClick={onClose} aria-label="Закрыть">

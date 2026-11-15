@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Company } from '../types';
 
 type CompanyRowData = Company & { industry?: string };
@@ -14,7 +14,7 @@ function CompanyRow({ company, onOpenCompany, onOccupy }: CompanyRowProps) {
   const industryRef = useRef<HTMLSpanElement>(null);
   const industries = company.industries || (company.industry ? [company.industry] : []);
   const extraIndustries = industries.slice(1);
-  const occupantName = company.occupiedByName || 'Занято';
+  const occupantName = company.occupiedByName || '';
 
   useEffect(() => {
     if (!industriesOpen) return undefined;
@@ -26,38 +26,53 @@ function CompanyRow({ company, onOpenCompany, onOccupy }: CompanyRowProps) {
     return () => document.removeEventListener('mousedown', close);
   }, [industriesOpen]);
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // Enter/пробел открывают карточку, только если фокус на самой строке, а не на кнопке внутри
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpenCompany(company);
+    }
+  };
+
   return (
     <div
       className={`company-pill ${company.occupiedBy ? 'occupied-row' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Открыть карточку компании ${company.name}`}
       onClick={() => onOpenCompany(company)}
+      onKeyDown={handleKeyDown}
     >
-      <span className="company-pill-name">{company.name}</span>
+      <span className="company-pill-name" title={company.name}>{company.name}</span>
       <span className={`status-word ${company.status}`}>
         {company.status === 'hot' ? 'Горячий' : 'Тёплый'}
       </span>
       <span className="occupy-slot">
         {company.occupiedBy ? (
-          <span className="occupy-word busy">
-            Занято
-            <span className="occupy-tooltip" role="tooltip">
-              {occupantName}
-            </span>
+          <span className="occupy-word busy" title={occupantName ? `Работает: ${occupantName}` : 'Занято'}>
+            <span className="occupy-label">Занято</span>
+            {occupantName && <span className="occupy-name">{occupantName}</span>}
           </span>
         ) : (
-          <button
-            type="button"
-            className="occupy-word free"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOccupy(company);
-            }}
-          >
-            Занять
-          </button>
+          <>
+            <span className="occupy-state free">Свободна</span>
+            <button
+              type="button"
+              className="occupy-word free"
+              aria-label={`Занять компанию ${company.name}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOccupy(company);
+              }}
+            >
+              Занять
+            </button>
+          </>
         )}
       </span>
       <span className="industry-slot">
-        <span>{industries[0] || '—'}</span>
+        {industries[0] ? <span className="industry-chip-static">{industries[0]}</span> : <span>—</span>}
         {extraIndustries.length > 0 && (
           <span className="industry-more-wrap" ref={industryRef}>
             <button
@@ -90,13 +105,23 @@ function CompanyRow({ company, onOpenCompany, onOccupy }: CompanyRowProps) {
 
 interface CompanyTableProps {
   companies: CompanyRowData[];
+  totalCount: number;
   onOpenCompany: (company: Company) => void;
   onOccupy: (company: Company) => void;
+  onResetFilters: () => void;
 }
 
-export default function CompanyTable({ companies, onOpenCompany, onOccupy }: CompanyTableProps) {
+export default function CompanyTable({ companies, totalCount, onOpenCompany, onOccupy, onResetFilters }: CompanyTableProps) {
   return (
     <div className="company-list">
+      {companies.length > 0 && (
+        <div className="company-list-head" aria-hidden="true">
+          <span>Компания</span>
+          <span>Статус</span>
+          <span>Доступ</span>
+          <span>Сферы</span>
+        </div>
+      )}
       {companies.map((company) => (
         <CompanyRow
           key={company.id}
@@ -106,7 +131,20 @@ export default function CompanyTable({ companies, onOpenCompany, onOccupy }: Com
         />
       ))}
       {companies.length === 0 && (
-        <div className="empty-state">Компаний пока нет</div>
+        totalCount === 0 ? (
+          <div className="empty-state">
+            <strong>Компаний пока нет</strong>
+            <span>Нажмите «Создать компанию», чтобы добавить первую.</span>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <strong>Ничего не найдено</strong>
+            <span>Попробуйте изменить поиск или фильтры.</span>
+            <button type="button" className="btn-ghost" onClick={onResetFilters}>
+              Сбросить фильтры
+            </button>
+          </div>
+        )
       )}
     </div>
   );
