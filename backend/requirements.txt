@@ -1,1 +1,5 @@
 # зависимости проекта
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
