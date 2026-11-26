@@ -21,30 +21,41 @@ function NavBar() {
     return `${currentUser.firstName?.[0] || ''}${currentUser.lastName?.[0] || ''}`.toUpperCase();
   };
 
-  const isProfilePage = location.pathname === '/profile';
-  const profileLink = isProfilePage ? '/companies' : '/profile';
-
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  const chipLabel = isProfilePage ? 'Компании' : 'Профиль';
+  const navClass = (path: string) =>
+    `nav-link${location.pathname.startsWith(path) ? ' active' : ''}`;
+  const navCurrent = (path: string) => (location.pathname.startsWith(path) ? 'page' : undefined);
 
   return (
     <header className="topbar">
-      <Link to="/companies" className="brand">Теплые контакты</Link>
-      <div className="topbar-side">
-        {currentUser.role === 'admin' && location.pathname !== '/admin' && (
-          <Link to="/admin" className="nav-admin-link">Отдел</Link>
-        )}
-        <Link to={profileLink} className="profile-chip">
-          <span className="chip-avatar">{getInitials() || 'К'}</span>
-          <span>{chipLabel}</span>
-        </Link>
-        <button type="button" className="logout-btn" onClick={handleLogout}>
-          Выйти
-        </button>
+      <div className="topbar-inner">
+        <Link to="/companies" className="brand">Теплые контакты</Link>
+        <nav className="topbar-nav" aria-label="Основная навигация">
+          <Link to="/companies" className={navClass('/companies')} aria-current={navCurrent('/companies')}>
+            Компании
+          </Link>
+          {currentUser.role === 'admin' && (
+            <Link to="/admin" className={navClass('/admin')} aria-current={navCurrent('/admin')}>
+              Отдел
+            </Link>
+          )}
+          <Link to="/profile" className={navClass('/profile')} aria-current={navCurrent('/profile')}>
+            Профиль
+          </Link>
+        </nav>
+        <div className="topbar-side">
+          <span className="user-chip">
+            <span className="chip-avatar" aria-hidden="true">{getInitials() || 'К'}</span>
+            <span className="user-chip-name">{currentUser.firstName} {currentUser.lastName}</span>
+          </span>
+          <button type="button" className="logout-btn" onClick={handleLogout}>
+            Выйти
+          </button>
+        </div>
       </div>
     </header>
   );
