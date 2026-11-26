@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import CompanyTable from '../components/CompanyTable';
-import CompanyFilters, { type CompanyFilterValues } from '../components/CompanyFilters';
+import CompanyFilters, { EMPTY_FILTERS, type CompanyFilterValues } from '../components/CompanyFilters';
 import CompanyForm from '../components/CompanyForm';
 import CompanyCard from '../components/CompanyCard';
 import Modal from '../components/Modal';
@@ -16,7 +16,7 @@ type CompanyWithLegacy = Company & { industry?: string };
 export default function Companies() {
   const { currentUser } = useAuth();
   const { companies, requestCompanyChange, directCompanyUpdate, occupyCompany, createUserByAdmin } = useData();
-  const [filters, setFilters] = useState<CompanyFilterValues>({ search: '', status: '', occupied: '', industry: '' });
+  const [filters, setFilters] = useState<CompanyFilterValues>(EMPTY_FILTERS);
   const [customIndustries, setCustomIndustries] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isUserOpen, setIsUserOpen] = useState(false);
@@ -89,21 +89,42 @@ export default function Companies() {
 
   return (
     <div className="container">
+      <div className="page-head">
+        <div>
+          <h1>Компании</h1>
+          <p className="page-sub">
+            Показано {filtered.length} из {storedCompanies.length}. Нажмите на компанию, чтобы открыть карточку.
+          </p>
+        </div>
+        <div className="page-actions">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => {
+              setUserError('');
+              setIsUserOpen(true);
+            }}
+          >
+            Добавить юзера
+          </button>
+          <button type="button" className="add-company-btn" onClick={() => setIsCreateOpen(true)}>
+            <span className="plus-icon" aria-hidden="true">+</span>
+            Создать компанию
+          </button>
+        </div>
+      </div>
       <CompanyFilters
         filters={filters}
         setFilters={setFilters}
         industries={industries}
-        onAddCompany={() => setIsCreateOpen(true)}
         onAddIndustry={handleAddIndustry}
-        onAddUser={() => {
-          setUserError('');
-          setIsUserOpen(true);
-        }}
       />
       <CompanyTable
         companies={filtered}
+        totalCount={storedCompanies.length}
         onOpenCompany={(c) => setSelectedCompanyId(c.id)}
         onOccupy={handleOccupy}
+        onResetFilters={() => setFilters(EMPTY_FILTERS)}
       />
 
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Создать компанию" size="lg" className="modal-edit">

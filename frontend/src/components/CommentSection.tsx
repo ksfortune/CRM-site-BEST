@@ -34,15 +34,14 @@ export default function CommentSection({ companyId, comments, occupiedBy }: Comm
 
   return (
     <div className="comments">
+      {comments.length === 0 && <p className="empty-message">Комментариев пока нет.</p>}
       {comments.map((c) => (
         <article key={c.id} className="comment-card">
-          <h5>Комментарий</h5>
+          <header className="comment-head">
+            <strong>{c.userName}</strong>
+            <time dateTime={c.createdAt}>{new Date(c.createdAt).toLocaleString('ru-RU')}</time>
+          </header>
           <p className="comment-text">{c.text}</p>
-          <p className="comment-meta">
-            Дата: {new Date(c.createdAt).toLocaleString('ru-RU')}
-            <br />
-            Создатель: {c.userName}
-          </p>
         </article>
       ))}
       {canComment ? (
@@ -52,12 +51,25 @@ export default function CommentSection({ companyId, comments, occupiedBy }: Comm
               rows={3}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Комментарий"
+              placeholder="Напишите комментарий"
+              aria-label="Текст комментария"
               autoFocus
             />
-            <button type="button" className="text-action" onClick={handleSubmit}>
-              Сохранить
-            </button>
+            <div className="compose-actions">
+              <button type="button" className="btn-primary" onClick={handleSubmit} disabled={!text.trim()}>
+                Сохранить
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  setText('');
+                  setComposing(false);
+                }}
+              >
+                Отмена
+              </button>
+            </div>
           </div>
         ) : (
           <button type="button" className="add-comment" onClick={() => setComposing(true)}>

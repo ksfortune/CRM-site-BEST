@@ -8,6 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -29,19 +30,22 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div className="auth-brand">Теплые контакты</div>
         <div className="auth-header">
-          <h2>Авторизация</h2>
-          <p>Войдите, чтобы продолжить работу</p>
+          <h2>Вход в систему</h2>
+          <p>Введите email и пароль, которые выдал администратор</p>
         </div>
 
-        {error && <div className="auth-error">{error}</div>}
+        {error && <div className="auth-error" role="alert">{error}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="login-email">Email</label>
             <input
+              id="login-email"
               type="email"
-              placeholder="admin@admin.com"
+              placeholder="name@example.com"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -50,14 +54,26 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label>Пароль</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <label htmlFor="login-password">Пароль</label>
+            <div className="password-field">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Введите пароль"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? 'Скрыть' : 'Показать'}
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={isLoading} className="auth-button">
@@ -66,7 +82,7 @@ export default function Login() {
         </form>
 
         <div className="auth-footer">
-          Доступ выдаёт администратор
+          Нет доступа? Обратитесь к администратору.
         </div>
       </div>
     </div>

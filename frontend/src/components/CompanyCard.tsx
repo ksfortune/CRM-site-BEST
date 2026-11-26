@@ -49,6 +49,9 @@ export default function CompanyCard({
 
   const comments = getCommentsForCompany(company.id);
   const occupant = company.occupiedBy ? findUserById(company.occupiedBy) : null;
+  const occupantName = occupant
+    ? `${occupant.firstName} ${occupant.lastName}`.trim()
+    : company.occupiedByName || '';
   const selectedContact = (company.contacts || []).find((c) => c.id === selectedContactId);
 
   const isAdmin = currentUser.role === 'admin';
@@ -122,28 +125,71 @@ export default function CompanyCard({
           </div>
         ) : (
           <div className="company-card-view">
+            <div className={`occupancy-banner ${isFree ? 'free' : isMine ? 'mine' : 'busy'}`}>
+              <div>
+                <strong className="occupancy-title">
+                  {isFree
+                    ? 'Компания свободна'
+                    : isMine
+                      ? 'Вы работаете с этой компанией'
+                      : `Занята: ${occupantName || 'другой пользователь'}`}
+                </strong>
+                <span className="occupancy-hint">
+                  {isFree
+                    ? 'Займите её, чтобы работать и оставлять комментарии.'
+                    : isMine
+                      ? 'Другие видят, что компания занята вами.'
+                      : 'Пока она занята, комментировать может только занявший.'}
+                </span>
+              </div>
+              <div className="occupancy-actions">
+                {isFree && (
+                  <button type="button" className="btn-primary" onClick={handleOccupy}>
+                    Занять
+                  </button>
+                )}
+                {isMine && (
+                  <button type="button" className="btn-secondary" onClick={handleRelease}>
+                    Освободить
+                  </button>
+                )}
+                {isBusyByOther && isAdmin && (
+                  <button type="button" className="btn-secondary" onClick={handleTakeOver}>
+                    Перезанять
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="sheet-grid">
               <div className="sheet-left">
-                <h4>Компания</h4>
-                <p>Дата создания: {formatDate(company.createdAt)}</p>
-                <p>Дата изменения: {formatDate(company.updatedAt)}</p>
-                <p>Сфера: {(company.industries || []).join(', ') || '—'}</p>
-                <p>
-                  Статус:{' '}
-                  <span className={`status-word ${company.status}`}>
-                    {company.status === 'hot' ? 'Горячий' : 'Тёплый'}
-                  </span>
-                </p>
-                {occupant && (
-                  <p className="occupant-details">
-                    Занята: {occupant.firstName} {occupant.lastName}
-                  </p>
-                )}
+                <h4>О компании</h4>
+                <dl className="info-list">
+                  <div>
+                    <dt>Статус</dt>
+                    <dd>
+                      <span className={`status-word ${company.status}`}>
+                        {company.status === 'hot' ? 'Горячий' : 'Тёплый'}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Сфера</dt>
+                    <dd>{(company.industries || []).join(', ') || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Дата создания</dt>
+                    <dd>{formatDate(company.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>Дата изменения</dt>
+                    <dd>{formatDate(company.updatedAt)}</dd>
+                  </div>
+                </dl>
                 <div className="sheet-divider" />
                 <div className="reps-head">
                   <h4>Представители</h4>
                   <button type="button" className="reps-add" onClick={() => setEditing(true)} aria-label="Добавить представителя">
-                    +
+                    + Добавить
                   </button>
                 </div>
                 {(company.contacts || []).length === 0 ? (
@@ -155,6 +201,7 @@ export default function CompanyCard({
                         <button
                           type="button"
                           className={`contact-list-item ${selectedContactId === c.id ? 'active' : ''}`}
+                          aria-expanded={selectedContactId === c.id}
                           onClick={() =>
                             setSelectedContactId(selectedContactId === c.id ? null : c.id)
                           }
@@ -186,6 +233,7 @@ export default function CompanyCard({
                 )}
               </div>
               <div className="sheet-right">
+                <h4>Комментарии</h4>
                 <CommentSection
                   companyId={company.id}
                   comments={comments}
@@ -194,21 +242,6 @@ export default function CompanyCard({
               </div>
             </div>
             <div className="company-card-actions">
-              {isFree && (
-                <button type="button" className="text-action" onClick={handleOccupy}>
-                  Занять
-                </button>
-              )}
-              {isMine && (
-                <button type="button" className="text-action" onClick={handleRelease}>
-                  Освободить
-                </button>
-              )}
-              {isBusyByOther && isAdmin && (
-                <button type="button" className="text-action" onClick={handleTakeOver}>
-                  Перезанять
-                </button>
-              )}
               <button type="button" className="sheet-edit" onClick={() => setEditing(true)}>
                 Изменить данные
               </button>
