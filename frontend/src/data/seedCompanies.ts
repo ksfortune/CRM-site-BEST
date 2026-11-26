@@ -12,7 +12,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-01-c1',
         name: 'Анна Соколова',
-        nickname: 'sokolova',
         phone: '+7 900 101-01-01',
         channels: [
           { type: 'tg', value: '@sokolova_log' },
@@ -36,7 +35,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-02-c1',
         name: 'Марк Левин',
-        nickname: 'pixel_mark',
         phone: '+7 900 202-02-02',
         channels: [
           { type: 'tg', value: '@pixel_mark' },
@@ -46,7 +44,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-02-c2',
         name: 'Ольга Ким',
-        nickname: 'kim_design',
         phone: '+7 900 202-02-03',
         channels: [{ type: 'email', value: 'olga@pixel.example' }],
       },
@@ -68,7 +65,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-03-c1',
         name: 'Елена Морозова',
-        nickname: 'utro_cafe',
         phone: '+7 900 303-03-03',
         channels: [
           { type: 'phone', value: '+7 900 303-03-03' },
@@ -93,7 +89,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-04-c1',
         name: 'Павел Орлов',
-        nickname: 'dr_orlov',
         phone: '+7 900 404-04-04',
         channels: [
           { type: 'email', value: 'orlov@medline.example' },
@@ -117,7 +112,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-05-c1',
         name: 'Дарья Волкова',
-        nickname: 'vector_daria',
         phone: '+7 900 505-05-05',
         channels: [
           { type: 'tg', value: '@vector_daria' },
@@ -141,7 +135,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-06-c1',
         name: 'Игорь Белов',
-        nickname: 'stroy_igor',
         phone: '+7 900 606-06-06',
         channels: [
           { type: 'phone', value: '+7 900 606-06-06' },
@@ -165,7 +158,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-07-c1',
         name: 'Светлана Новикова',
-        nickname: 'fin_sveta',
         phone: '+7 900 707-07-07',
         channels: [
           { type: 'email', value: 'svetlana@finkonsalt.example' },
@@ -189,7 +181,6 @@ export const SEED_COMPANIES: Company[] = [
       {
         id: 'tpl-08-c1',
         name: 'Никита Егоров',
-        nickname: 'ecopak',
         phone: '+7 900 808-08-08',
         channels: [
           { type: 'web', value: 'https://ecopak.example' },

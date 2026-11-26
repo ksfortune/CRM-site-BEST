@@ -69,9 +69,35 @@ export default function Login() {
                 type="button"
                 className="password-toggle"
                 aria-pressed={showPassword}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                title={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                 onClick={() => setShowPassword((v) => !v)}
               >
-                {showPassword ? 'Скрыть' : 'Показать'}
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+                  {showPassword ? (
+                    <>
+                      <path
+                        d="M3 3l18 18M10.6 5.1A9.7 9.7 0 0 1 12 5c5 0 8.5 4.2 9.6 6.2a1.6 1.6 0 0 1 0 1.6 15 15 0 0 1-3 3.6M6.5 6.6A14.8 14.8 0 0 0 2.4 11.8a1.6 1.6 0 0 0 0 1.6C3.5 15.4 7 19.5 12 19.5c1.6 0 3-.4 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <path
+                        d="M2.4 11.4C3.5 9.4 7 5 12 5s8.5 4.4 9.6 6.4a1.6 1.6 0 0 1 0 1.2C20.5 14.6 17 19 12 19s-8.5-4.4-9.6-6.4a1.6 1.6 0 0 1 0-1.2Z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                    </>
+                  )}
+                </svg>
               </button>
             </div>
           </div>

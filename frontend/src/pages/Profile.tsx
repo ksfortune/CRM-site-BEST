@@ -4,43 +4,41 @@ import { useData } from '../contexts/DataContext';
 import { Link } from 'react-router-dom';
 import SocialChips from '../components/SocialChips';
 import Modal from '../components/Modal';
+import { channelsFromSocials, socialsFromChannels } from '../constants/socials';
+import { getInitials } from '../utils/names';
 import { reportActionError } from '../utils/errors';
-import type { SocialChannel, UserSocial } from '../types';
+import type { UserSocial } from '../types';
 
 export default function Profile() {
   const { currentUser, updateProfile, changePassword } = useAuth();
   const { companies } = useData();
-  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [socials, setSocials] = useState<UserSocial[]>(currentUser?.socials || []);
   const [oldPass, setOldPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [message, setMessage] = useState<{ text: string; type: '' | 'success' | 'error' }>({ text: '', type: '' });
-  const [dirty, setDirty] = useState(false);
   const [socialsOpen, setSocialsOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   useEffect(() => {
-    setPhone(currentUser?.phone || '');
     setSocials(currentUser?.socials || []);
-    setDirty(false);
   }, [currentUser]);
 
   if (!currentUser) return null;
 
   const myCompanies = companies.filter((c) => c.occupiedBy === currentUser.id);
 
-  const channelsFromSocials = (list: UserSocial[]): SocialChannel[] =>
-    (list || []).map((s) => ({ type: s.type, value: s.url || s.value || '' }));
+  const closeSocials = () => {
+    // Закрыли без сохранения — возвращаем сохранённый список
+    setSocials(currentUser.socials || []);
+    setSocialsOpen(false);
+  };
 
-  const socialsFromChannels = (channels: SocialChannel[]): UserSocial[] =>
-    channels.map((c) => ({ type: c.type, url: c.value || '' }));
-
-  const saveProfile = async () => {
+  const saveSocials = async () => {
     try {
-      await updateProfile({ socials, phone });
+      await updateProfile({ socials });
       setMessage({ text: 'Профиль успешно обновлён!', type: 'success' });
-      setDirty(false);
+      setSocialsOpen(false);
       setTimeout(() => setMessage({ text: '', type: '' }), 3000);
     } catch (err) {
       reportActionError(err, 'Failed to update profile');
@@ -69,16 +67,12 @@ export default function Profile() {
     }
   };
 
-  const getInitials = () => {
-    return `${currentUser.firstName?.[0] || ''}${currentUser.lastName?.[0] || ''}`.toUpperCase();
-  };
-
   return (
     <div className="profile-container">
       <div className="identity-bar">
-        <span className="chip-avatar lg">{getInitials() || 'К'}</span>
+        <span className="chip-avatar lg">{getInitials(currentUser.fullName) || 'К'}</span>
         <div>
-          <h1>{currentUser.firstName} {currentUser.lastName}</h1>
+          <h1>{currentUser.fullName}</h1>
           <p className="profile-role">
             Статус: {currentUser.role === 'admin' ? 'Администратор' : 'Пользователь'}
           </p>
@@ -89,20 +83,9 @@ export default function Profile() {
         <section className="profile-card">
           <h3>Основная информация</h3>
           <p className="info-line"><span>Email:</span> {currentUser.email}</p>
-          <p className="info-line">
-            <span>Номер телефона:</span>
-            <input
-              className="inline-input"
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setDirty(true);
-              }}
-              placeholder="+7..."
-            />
-          </p>
+          <p className="info-line"><span>Номер телефона:</span> {currentUser.phone || '—'}</p>
           <button type="button" className="text-action" onClick={() => setPasswordOpen((v) => !v)}>
-            Смена пароля:
+            Смена пароля
           </button>
           {passwordOpen && (
             <form onSubmit={handlePasswordChange} className="password-form">
@@ -131,13 +114,8 @@ export default function Profile() {
             </form>
           )}
           <button type="button" className="text-action center" onClick={() => setSocialsOpen(true)}>
-            Добавить соц-сеть
+            Социальные сети
           </button>
-          {dirty && (
-            <button className="save-profile-btn" onClick={saveProfile}>
-              Сохранить изменения
-            </button>
-          )}
         </section>
 
         <section className="profile-card">
@@ -147,7 +125,7 @@ export default function Profile() {
           ) : (
             <div className="my-companies-list">
               {myCompanies.map((company) => (
-                <Link key={company.id} to="/companies" className="company-badge">
+                <Link key={company.id} to={`/companies?company=${company.id}`} className="company-badge">
                   {company.name}
                 </Link>
               ))}
@@ -161,17 +139,13 @@ export default function Profile() {
 
       {message.text && <div className={`profile-message ${message.type}`}>{message.text}</div>}
 
-      <Modal isOpen={socialsOpen} onClose={() => setSocialsOpen(false)} title="Соц-сети" className="modal-social">
+      <Modal isOpen={socialsOpen} onClose={closeSocials} title="Социальные сети" className="modal-social">
         <SocialChips
           channels={channelsFromSocials(socials)}
-          onChange={(channels) => {
-            setSocials(socialsFromChannels(channels));
-            setDirty(true);
-          }}
+          onChange={(channels) => setSocials(socialsFromChannels(channels))}
         />
         <div className="social-modal-actions">
-          <button type="button" className="text-action" onClick={saveProfile}>Сохранить соц-сеть</button>
-          <button type="button" className="text-action" onClick={() => setSocialsOpen(false)}>Добавить еще соц-сеть</button>
+          <button type="button" className="text-action" onClick={saveSocials}>Сохранить</button>
         </div>
       </Modal>
     </div>

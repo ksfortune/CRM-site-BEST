@@ -4,8 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { logHandledError } from '../utils/errors';
 
 interface RegisterForm {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
   bestEmail: string;
   password: string;
@@ -16,8 +15,7 @@ export default function Register() {
   const { addUser } = useData();
   const navigate = useNavigate();
   const [form, setForm] = useState<RegisterForm>({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     bestEmail: '',
     password: '',
@@ -29,8 +27,7 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!form.firstName.trim()) newErrors.firstName = 'Введите имя';
-    if (!form.lastName.trim()) newErrors.lastName = 'Введите фамилию';
+    if (!form.fullName.trim()) newErrors.fullName = 'Введите ФИО';
     if (!form.email.trim()) {
       newErrors.email = 'Введите email';
     } else if (!/\S+@\S+\.\S+/.test(form.email)) {
@@ -59,8 +56,7 @@ export default function Register() {
     
     try {
       await addUser({
-        firstName: form.firstName,
-        lastName: form.lastName,
+        fullName: form.fullName.trim(),
         email: form.email,
         bestEmail: form.bestEmail || form.email,
         password: form.password,
@@ -96,29 +92,16 @@ export default function Register() {
         )}
         
         <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Имя *</label>
-              <input
-                type="text"
-                placeholder="Иван"
-                value={form.firstName}
-                onChange={e => setForm({...form, firstName: e.target.value})}
-                className={errors.firstName ? 'error' : ''}
-              />
-              {errors.firstName && <span className="error-text">{errors.firstName}</span>}
-            </div>
-            <div className="form-group">
-              <label>Фамилия *</label>
-              <input
-                type="text"
-                placeholder="Иванов"
-                value={form.lastName}
-                onChange={e => setForm({...form, lastName: e.target.value})}
-                className={errors.lastName ? 'error' : ''}
-              />
-              {errors.lastName && <span className="error-text">{errors.lastName}</span>}
-            </div>
+          <div className="form-group">
+            <label>ФИО *</label>
+            <input
+              type="text"
+              placeholder="Иванов Иван Иванович"
+              value={form.fullName}
+              onChange={e => setForm({...form, fullName: e.target.value})}
+              className={errors.fullName ? 'error' : ''}
+            />
+            {errors.fullName && <span className="error-text">{errors.fullName}</span>}
           </div>
           
           <div className="form-group">

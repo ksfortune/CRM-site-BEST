@@ -13,10 +13,16 @@ interface CompanyFormState {
 const emptyContact = (): Contact => ({
   id: uuid(),
   name: '',
-  nickname: '',
   phone: '',
   channels: [],
 });
+
+/**
+ * full — вся форма (создание компании);
+ * company — только данные самой компании: название, статус, сферы;
+ * contacts — только список представителей: добавление, изменение, удаление.
+ */
+export type CompanyFormMode = 'full' | 'company' | 'contacts';
 
 interface CompanyFormProps {
   onSubmit: (data: CompanyFormState & CompanyDraft) => void;
@@ -24,12 +30,23 @@ interface CompanyFormProps {
   onAddIndustry: (value: string) => void;
   onCancel: () => void;
   initialData?: CompanyDraft | null;
+  mode?: CompanyFormMode;
 }
 
-export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry, onCancel, initialData }: CompanyFormProps) {
+export default function CompanyForm({
+  onSubmit,
+  industriesCatalog,
+  onAddIndustry,
+  onCancel,
+  initialData,
+  mode = 'full',
+}: CompanyFormProps) {
   const [form, setForm] = useState<CompanyFormState & CompanyDraft>(() => normalizeInitial(initialData));
   const [newIndustry, setNewIndustry] = useState('');
   const [showNewIndustry, setShowNewIndustry] = useState(false);
+
+  const showCompanyFields = mode !== 'contacts';
+  const showContacts = mode !== 'company';
 
   const toggleIndustry = (ind: string) => {
     setForm((prev) => {
@@ -69,127 +86,136 @@ export default function CompanyForm({ onSubmit, industriesCatalog, onAddIndustry
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert('Название обязательно');
-      return;
+    if (showCompanyFields) {
+      if (!form.name.trim()) {
+        alert('Название обязательно');
+        return;
+      }
+      if (!form.industries.length) {
+        alert('Укажите хотя бы одну сферу деятельности');
+        return;
+      }
     }
-    if (!form.industries.length) {
-      alert('Укажите хотя бы одну сферу деятельности');
+    if (showContacts && form.contacts.some((c) => !c.name.trim())) {
+      alert('Укажите ФИО у каждого представителя или удалите пустую карточку');
       return;
     }
     onSubmit({
       ...form,
       name: form.name.trim(),
-      contacts: form.contacts.filter((c) => c.name.trim()),
+      contacts: form.contacts.map((c) => ({ ...c, name: c.name.trim() })),
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="company-edit-form">
-      <div className="form-section">
-        <label className="field-label">Название *</label>
-        <input
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Название компании"
-          required
-        />
-      </div>
-
-      <div className="form-section">
-        <label className="field-label">Сферы деятельности *</label>
-        <div className="industry-chips">
-          {industriesCatalog.map((ind) => (
-            <button
-              key={ind}
-              type="button"
-              className={`industry-chip ${form.industries.includes(ind) ? 'active' : ''}`}
-              onClick={() => toggleIndustry(ind)}
-            >
-              {ind}
-            </button>
-          ))}
-          <button type="button" className="industry-chip add" onClick={() => setShowNewIndustry(true)}>
-            + Новая
-          </button>
-        </div>
-        {showNewIndustry && (
-          <div className="inline-add-row">
+      {showCompanyFields && (
+        <>
+          <div className="form-section">
+            <label className="field-label">Название *</label>
             <input
-              value={newIndustry}
-              onChange={(e) => setNewIndustry(e.target.value)}
-              placeholder="Новая сфера"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Название компании"
+              required
             />
-            <button type="button" className="btn-primary" onClick={addIndustry}>
-              Добавить
-            </button>
-            <button type="button" className="btn-ghost" onClick={() => setShowNewIndustry(false)}>
-              Отмена
-            </button>
           </div>
-        )}
-        {form.industries.length > 0 && (
-          <div className="selected-tags">
-            Выбрано: {form.industries.join(', ')}
-          </div>
-        )}
-      </div>
 
-      <div className="form-section">
-        <label className="field-label">Статус</label>
-        <select
-          value={form.status}
-          onChange={(e) => setForm({ ...form, status: e.target.value === 'hot' ? 'hot' : 'warm' })}
-        >
-          <option value="warm">Тёплый</option>
-          <option value="hot">Горячий</option>
-        </select>
-      </div>
-
-      <div className="form-section">
-        <div className="section-head">
-          <label className="field-label">Представители</label>
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => setForm((prev) => ({ ...prev, contacts: [...prev.contacts, emptyContact()] }))}
-          >
-            + Контакт
-          </button>
-        </div>
-        {form.contacts.length === 0 && (
-          <p className="empty-message">Пока нет представителей — добавьте контакт</p>
-        )}
-        {form.contacts.map((contact, idx) => (
-          <div key={contact.id} className="contact-edit-card">
-            <div className="contact-edit-grid">
-              <input
-                placeholder="Имя *"
-                value={contact.name}
-                onChange={(e) => updateContact(idx, { name: e.target.value })}
-              />
-              <input
-                placeholder="Никнейм"
-                value={contact.nickname}
-                onChange={(e) => updateContact(idx, { nickname: e.target.value })}
-              />
-              <input
-                placeholder="Телефон"
-                value={contact.phone}
-                onChange={(e) => updateContact(idx, { phone: e.target.value })}
-              />
+          <div className="form-section">
+            <label className="field-label">Сферы деятельности *</label>
+            <div className="industry-chips">
+              {industriesCatalog.map((ind) => (
+                <button
+                  key={ind}
+                  type="button"
+                  className={`industry-chip ${form.industries.includes(ind) ? 'active' : ''}`}
+                  onClick={() => toggleIndustry(ind)}
+                >
+                  {ind}
+                </button>
+              ))}
+              <button type="button" className="industry-chip add" onClick={() => setShowNewIndustry(true)}>
+                + Новая
+              </button>
             </div>
-            <label className="field-label subtle">Способы связи</label>
-            <SocialChips
-              channels={contact.channels || []}
-              onChange={(channels: SocialChannel[]) => updateContact(idx, { channels })}
-            />
-            <button type="button" className="remove-contact-btn" onClick={() => removeContact(idx)}>
-              Удалить контакт
+            {showNewIndustry && (
+              <div className="inline-add-row">
+                <input
+                  value={newIndustry}
+                  onChange={(e) => setNewIndustry(e.target.value)}
+                  placeholder="Новая сфера"
+                />
+                <button type="button" className="btn-primary" onClick={addIndustry}>
+                  Добавить
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setShowNewIndustry(false)}>
+                  Отмена
+                </button>
+              </div>
+            )}
+            {form.industries.length > 0 && (
+              <div className="selected-tags">
+                Выбрано: {form.industries.join(', ')}
+              </div>
+            )}
+          </div>
+
+          <div className="form-section">
+            <label className="field-label">Статус</label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value === 'hot' ? 'hot' : 'warm' })}
+            >
+              <option value="warm">Тёплый</option>
+              <option value="hot">Горячий</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {showContacts && (
+        <div className="form-section">
+          <div className="section-head">
+            <label className="field-label">Представители</label>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setForm((prev) => ({ ...prev, contacts: [...prev.contacts, emptyContact()] }))}
+            >
+              + Представитель
             </button>
           </div>
-        ))}
-      </div>
+          {form.contacts.length === 0 && (
+            <p className="empty-message">Пока нет представителей — добавьте первого</p>
+          )}
+          {form.contacts.map((contact, idx) => (
+            <div key={contact.id} className="contact-edit-card">
+              <div className="contact-edit-grid">
+                <input
+                  placeholder="ФИО *"
+                  aria-label="ФИО представителя"
+                  value={contact.name}
+                  onChange={(e) => updateContact(idx, { name: e.target.value })}
+                />
+                <input
+                  placeholder="Телефон"
+                  aria-label="Телефон представителя"
+                  value={contact.phone}
+                  onChange={(e) => updateContact(idx, { phone: e.target.value })}
+                />
+              </div>
+              <label className="field-label subtle">Способы связи</label>
+              <SocialChips
+                channels={contact.channels || []}
+                onChange={(channels: SocialChannel[]) => updateContact(idx, { channels })}
+              />
+              <button type="button" className="remove-contact-btn" onClick={() => removeContact(idx)}>
+                Удалить представителя
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="form-actions">
         <button type="button" className="btn-ghost" onClick={onCancel}>
@@ -221,7 +247,6 @@ function normalizeInitial(data?: CompanyDraft | null): CompanyFormState & Compan
     contacts: (data.contacts || []).map((c) => ({
       id: c.id || uuid(),
       name: c.name || '',
-      nickname: c.nickname || '',
       phone: c.phone || '',
       channels: c.channels || [],
     })),

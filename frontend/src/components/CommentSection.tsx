@@ -24,7 +24,7 @@ export default function CommentSection({ companyId, comments, occupiedBy }: Comm
       addComment(
         companyId,
         currentUser.id,
-        `${currentUser.firstName} ${currentUser.lastName}`,
+        currentUser.fullName,
         text
       );
       setText('');

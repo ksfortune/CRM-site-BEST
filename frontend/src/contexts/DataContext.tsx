@@ -2,9 +2,11 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { v4 as uuid } from 'uuid';
 import { applyDemoOccupancy, mergeSeedCompanies } from '../data/seedCompanies';
 import { logHandledError } from '../utils/errors';
+import { diffCompanies } from '../utils/companyDiff';
 import type {
-  ChangeRequest,
-  ChangeRequestType,
+  ActivityAction,
+  ActivityChange,
+  ActivityLogEntry,
   Comment,
   Company,
   CompanyDraft,
@@ -18,12 +20,11 @@ import type {
 interface DataContextValue {
   users: User[];
   companies: Company[];
-  requests: ChangeRequest[];
+  logs: ActivityLogEntry[];
   findUserById: (id: string) => User | undefined;
-  requestCompanyChange: (type: ChangeRequestType, data: CompanyDraft, currentUser: User) => ChangeRequest;
-  approveRequest: (requestId: string, adminUser: User) => boolean;
-  rejectRequest: (requestId: string) => void;
-  directCompanyUpdate: (companyData: CompanyDraft, adminUser: User, isDelete?: boolean) => void;
+  /** Создаёт или обновляет компанию и пишет изменения в журнал. */
+  saveCompany: (companyData: CompanyDraft, actor: User) => void;
+  deleteCompany: (company: CompanyDraft, actor: User) => void;
   occupyCompany: (companyId: string, userId: string, userName: string) => void;
   releaseCompany: (companyId: string) => void;
   addComment: (companyId: string, userId: string, userName: string, text: string) => void;
@@ -31,15 +32,19 @@ interface DataContextValue {
   addUser: (userData: Partial<User>) => void;
   approveUser: (userId: string) => void;
   blockUser: (userId: string, blocked: boolean) => void;
+  deleteUser: (userId: string) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
   transferAdmin: (fromAdminId: string, toUserId: string) => void;
   createUserByAdmin: (userData: CreateUserInput) => User;
 }
 
+/** Пользователь из localStorage, возможно со старыми полями firstName/lastName. */
 type StoredUser = Partial<User> & {
   id?: string;
   email?: string;
   role?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -48,15 +53,17 @@ const STORAGE_KEYS = {
   USERS: 'warmcontacts_users',
   COMPANIES: 'warmcontacts_companies',
   COMMENTS: 'warmcontacts_comments',
-  REQUESTS: 'warmcontacts_requests'
+  LOGS: 'warmcontacts_logs',
+  REMOVED_SEED_USERS: 'warmcontacts_removed_seed_users',
 };
+
+const MAX_LOG_ENTRIES = 500;
 
 const DEFAULT_ADMIN: User = {
   id: 'admin-default',
   email: 'admin@admin.com',
   password: 'admin',
-  firstName: 'Admin',
-  lastName: 'System',
+  fullName: 'Admin System',
   bestEmail: 'admin@admin.com',
   phone: '',
   role: 'admin',
@@ -70,8 +77,7 @@ const DEFAULT_USER: User = {
   id: 'user-default',
   email: 'user@user.com',
   password: 'user',
-  firstName: 'Иван',
-  lastName: 'Иванов',
+  fullName: 'Иван Иванов',
   bestEmail: 'user@user.com',
   phone: '+7 900 000-00-01',
   role: 'user',
@@ -85,8 +91,7 @@ const NASTYA_USER: User = {
   id: 'user-nastya',
   email: 'nastya@shedrina.com',
   password: 'nastya',
-  firstName: 'Настя',
-  lastName: 'Шедрина',
+  fullName: 'Настя Шедрина',
   bestEmail: 'nastya@shedrina.com',
   phone: '',
   role: 'user',
@@ -96,23 +101,49 @@ const NASTYA_USER: User = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
+/** Удалённые админом демо-пользователи не должны возвращаться при перезагрузке. */
+function readRemovedSeedUsers(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.REMOVED_SEED_USERS);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberRemovedSeedUser(userId: string) {
+  if (userId !== DEFAULT_USER.id && userId !== NASTYA_USER.id) return;
+  const removed = readRemovedSeedUsers();
+  if (removed.includes(userId)) return;
+  localStorage.setItem(STORAGE_KEYS.REMOVED_SEED_USERS, JSON.stringify([...removed, userId]));
+}
+
+/** Старые firstName + lastName превращаем в одно поле fullName. */
+function migrateUser(u: StoredUser): StoredUser {
+  const { firstName, lastName, ...rest } = u;
+  const fullName = (rest.fullName || [firstName, lastName].filter(Boolean).join(' ')).trim();
+  return { ...rest, fullName };
+}
+
 function toStoredUsers(value: unknown): StoredUser[] {
   if (!Array.isArray(value)) return [];
-  return value as StoredUser[];
+  return (value as StoredUser[]).map(migrateUser);
 }
 
 function ensureAdminUser(list: unknown): User[] {
   const users = toStoredUsers(list);
-  const hasAdmin = users.some(
-    (u) => u.email === 'admin@admin.com' || u.id === DEFAULT_ADMIN.id || u.email === 'admin'
-  );
+  const isAdminRecord = (u: StoredUser) =>
+    u.email === 'admin@admin.com' || u.id === DEFAULT_ADMIN.id || u.email === 'admin';
+  const hasAdmin = users.some(isAdminRecord);
   if (hasAdmin) {
     return users.map((u) =>
-      u.email === 'admin@admin.com' || u.id === DEFAULT_ADMIN.id || u.email === 'admin'
+      isAdminRecord(u)
         ? {
             ...DEFAULT_ADMIN,
             ...u,
-            email: 'admin@admin.com',
+            fullName: u.fullName || DEFAULT_ADMIN.fullName,
+            email: !u.email || u.email === 'admin' ? 'admin@admin.com' : u.email,
             password: u.password === 'admin' || !u.password ? 'admin' : u.password,
             role: 'admin' as const,
             isApproved: true,
@@ -134,7 +165,8 @@ function ensureTemplateUser(list: unknown): User[] {
         ? {
             ...DEFAULT_USER,
             ...u,
-            email: 'user@user.com',
+            fullName: u.fullName || DEFAULT_USER.fullName,
+            email: u.email || DEFAULT_USER.email,
             password: u.password || 'user',
             role: u.role === 'admin' ? 'admin' as const : 'user' as const,
             isApproved: true,
@@ -145,6 +177,7 @@ function ensureTemplateUser(list: unknown): User[] {
         : u
     ) as User[];
   }
+  if (readRemovedSeedUsers().includes(DEFAULT_USER.id)) return users as User[];
   return [...users, DEFAULT_USER] as User[];
 }
 
@@ -158,10 +191,9 @@ function ensureNastyaUser(list: unknown): User[] {
         ? {
             ...NASTYA_USER,
             ...u,
-            email: NASTYA_USER.email,
+            email: u.email || NASTYA_USER.email,
             password: u.password || NASTYA_USER.password,
-            firstName: u.firstName || NASTYA_USER.firstName,
-            lastName: u.lastName || NASTYA_USER.lastName,
+            fullName: u.fullName || NASTYA_USER.fullName,
             isApproved: true,
             isBlocked: false,
             role: u.role === 'admin' ? 'admin' as const : 'user' as const,
@@ -171,7 +203,18 @@ function ensureNastyaUser(list: unknown): User[] {
         : u
     ) as User[];
   }
+  if (readRemovedSeedUsers().includes(NASTYA_USER.id)) return users as User[];
   return [...users, NASTYA_USER] as User[];
+}
+
+/** Представитель в актуальном виде: ФИО одним полем, без устаревшего никнейма. */
+function normalizeContact(c: Contact & { nickname?: string }): Contact {
+  return {
+    id: c.id || uuid(),
+    name: c.name || '',
+    phone: c.phone || '',
+    channels: c.channels || [],
+  };
 }
 
 function migrateCompany(c: null | undefined): null;
@@ -191,13 +234,12 @@ function migrateCompany(c: CompanyDraft | null | undefined): Company | null {
       contacts.push({
         id: uuid(),
         name: c.repName || 'Контакт',
-        nickname: '',
         phone: c.phone || '',
         channels,
       });
     }
   }
-  return { ...c, industries, contacts } as Company;
+  return { ...c, industries, contacts: contacts.map(normalizeContact) } as Company;
 }
 
 function loadCompanies(): Company[] {
@@ -234,12 +276,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     return [];
   });
-  const [requests, setRequests] = useState<ChangeRequest[]>(() => {
+  const [logs, setLogs] = useState<ActivityLogEntry[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.REQUESTS);
-      if (stored) return JSON.parse(stored) as ChangeRequest[];
+      const stored = localStorage.getItem(STORAGE_KEYS.LOGS);
+      if (stored) return JSON.parse(stored) as ActivityLogEntry[];
     } catch (e) {
-      logHandledError(e, 'Failed to read requests');
+      logHandledError(e, 'Failed to read activity log');
     }
     return [];
   });
@@ -254,28 +296,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
   }, [comments]);
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.REQUESTS, JSON.stringify(requests));
-  }, [requests]);
+    localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
+  }, [logs]);
 
   const findUserById = (id: string) => users.find((u) => u.id === id);
 
-  const requestCompanyChange = (type: ChangeRequestType, data: CompanyDraft, currentUser: User) => {
-    const newRequest: ChangeRequest = {
+  const pushLog = (
+    action: ActivityAction,
+    company: { id: string; name: string },
+    actor: User,
+    changes: ActivityChange[]
+  ) => {
+    const entry: ActivityLogEntry = {
       id: uuid(),
-      type,
-      companyId: data.id || null,
-      targetCompany: type === 'delete' ? null : migrateCompany(data),
-      requestedBy: currentUser.id,
-      requestedByName: `${currentUser.firstName} ${currentUser.lastName}`,
-      status: 'pending',
+      action,
+      companyId: company.id,
+      companyName: company.name,
+      userId: actor.id,
+      userName: actor.fullName || actor.email,
+      changes,
       createdAt: new Date().toISOString(),
     };
-    setRequests((prev) => [...prev, newRequest]);
-    return newRequest;
+    setLogs((prev) => [entry, ...prev].slice(0, MAX_LOG_ENTRIES));
   };
 
   const createUserByAdmin = (userData: CreateUserInput): User => {
     const email = (userData.email || '').trim().toLowerCase();
+    const fullName = (userData.fullName || '').trim();
+    if (!fullName) throw new Error('ФИО обязательно');
     if (!email) throw new Error('Email обязателен');
     if (users.some((u) => (u.email || '').toLowerCase() === email)) {
       throw new Error('Пользователь с таким email уже существует');
@@ -285,6 +333,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       phone: '',
       bestEmail: email,
       ...userData,
+      fullName,
       email,
       id: uuid(),
       isBlocked: false,
@@ -296,78 +345,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return newUser;
   };
 
-  const approveRequest = (requestId: string, adminUser: User) => {
-    const request = requests.find((r) => r.id === requestId);
-    if (!request || request.status !== 'pending') return false;
-    if (request.type === 'create') {
-      const target = request.targetCompany ? migrateCompany(request.targetCompany) : null;
-      const newCompany = {
-        ...(target ?? {}),
-        id: uuid(),
-        createdBy: adminUser.id,
-        updatedBy: adminUser.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      } as Company;
-      setCompanies((prev) => [...prev, newCompany]);
-    } else if (request.type === 'update') {
-      const target = request.targetCompany ? migrateCompany(request.targetCompany) : null;
-      setCompanies((prev) =>
-        prev.map((c) =>
-          c.id === request.companyId
-            ? {
-                ...(target ?? {}),
-                updatedBy: adminUser.id,
-                updatedAt: new Date().toISOString(),
-              } as Company
-            : c
-        )
-      );
-    } else if (request.type === 'delete') {
-      setCompanies((prev) => prev.filter((c) => c.id !== request.companyId));
-    }
-    setRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'approved' } : r))
-    );
-    return true;
-  };
-
-  const rejectRequest = (requestId: string) => {
-    setRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected' } : r))
-    );
-  };
-
-  const directCompanyUpdate = (companyData: CompanyDraft, adminUser: User, isDelete = false) => {
-    if (isDelete) {
-      setCompanies((prev) => prev.filter((c) => c.id !== companyData.id));
+  const saveCompany = (companyData: CompanyDraft, actor: User) => {
+    const now = new Date().toISOString();
+    const normalized = migrateCompany(companyData);
+    const existing = companyData.id ? companies.find((c) => c.id === companyData.id) : undefined;
+    if (existing) {
+      const updated: Company = { ...normalized, updatedBy: actor.id, updatedAt: now };
+      const changes = diffCompanies(existing, updated);
+      setCompanies((prev) => prev.map((c) => (c.id === existing.id ? updated : c)));
+      if (changes.length > 0) pushLog('update', updated, actor, changes);
     } else {
-      const normalized = migrateCompany(companyData);
-      if (companies.find((c) => c.id === companyData.id)) {
-        setCompanies((prev) =>
-          prev.map((c) =>
-            c.id === companyData.id
-              ? {
-                  ...normalized,
-                  updatedBy: adminUser.id,
-                  updatedAt: new Date().toISOString(),
-                }
-              : c
-          )
-        );
-      } else {
-        setCompanies((prev) => [
-          ...prev,
-          {
-            ...normalized,
-            id: uuid(),
-            createdBy: adminUser.id,
-            updatedBy: adminUser.id,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ]);
-      }
+      const created: Company = {
+        ...normalized,
+        id: uuid(),
+        occupiedBy: normalized.occupiedBy ?? null,
+        occupiedByName: normalized.occupiedByName ?? null,
+        createdBy: actor.id,
+        updatedBy: actor.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      setCompanies((prev) => [...prev, created]);
+      pushLog('create', created, actor, diffCompanies(null, created));
+    }
+  };
+
+  const deleteCompany = (company: CompanyDraft, actor: User) => {
+    const existing = companies.find((c) => c.id === company.id);
+    setCompanies((prev) => prev.filter((c) => c.id !== company.id));
+    if (company.id) {
+      pushLog('delete', { id: company.id, name: existing?.name || company.name || '' }, actor, []);
     }
   };
 
@@ -425,6 +432,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const blockUser = (userId: string, blocked: boolean) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isBlocked: blocked } : u)));
   };
+  const deleteUser = (userId: string) => {
+    rememberRemovedSeedUser(userId);
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    // Компании удалённого пользователя снова становятся свободными
+    setCompanies((prev) =>
+      prev.map((c) => (c.occupiedBy === userId ? { ...c, occupiedBy: null, occupiedByName: null } : c))
+    );
+  };
   const updateUser = (userId: string, updates: Partial<User>) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...updates } : u)));
   };
@@ -441,12 +456,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value: DataContextValue = {
     users,
     companies,
-    requests,
+    logs,
     findUserById,
-    requestCompanyChange,
-    approveRequest,
-    rejectRequest,
-    directCompanyUpdate,
+    saveCompany,
+    deleteCompany,
     occupyCompany,
     releaseCompany,
     addComment,
@@ -454,6 +467,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addUser,
     approveUser,
     blockUser,
+    deleteUser,
     updateUser,
     transferAdmin,
     createUserByAdmin,

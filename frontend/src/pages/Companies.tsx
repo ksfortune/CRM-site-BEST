@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import CompanyTable from '../components/CompanyTable';
@@ -6,23 +7,21 @@ import CompanyFilters, { EMPTY_FILTERS, type CompanyFilterValues } from '../comp
 import CompanyForm from '../components/CompanyForm';
 import CompanyCard from '../components/CompanyCard';
 import Modal from '../components/Modal';
-import { logHandledError } from '../utils/errors';
-import type { Company, CompanyDraft, CreateUserInput } from '../types';
-
-const EMPTY_USER = { firstName: '', lastName: '', email: '', password: '' };
+import type { Company, CompanyDraft } from '../types';
 
 type CompanyWithLegacy = Company & { industry?: string };
 
 export default function Companies() {
   const { currentUser } = useAuth();
-  const { companies, requestCompanyChange, directCompanyUpdate, occupyCompany, createUserByAdmin } = useData();
+  const { companies, saveCompany, occupyCompany } = useData();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<CompanyFilterValues>(EMPTY_FILTERS);
   const [customIndustries, setCustomIndustries] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isUserOpen, setIsUserOpen] = useState(false);
-  const [userForm, setUserForm] = useState(EMPTY_USER);
-  const [userError, setUserError] = useState('');
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+  // Открытая карточка хранится в адресе (?company=<id>), чтобы на неё можно было сослаться
+  // из профиля и из списка членов отдела.
+  const selectedCompanyId = searchParams.get('company');
 
   const storedCompanies = companies as CompanyWithLegacy[];
 
@@ -43,13 +42,12 @@ export default function Companies() {
 
   const selectedCompany = storedCompanies.find((c) => c.id === selectedCompanyId) || null;
 
+  const openCompany = (companyId: string) => setSearchParams({ company: companyId });
+  const closeCompany = () => setSearchParams({});
+
   const handleCreate = (companyData: CompanyDraft) => {
     if (!currentUser) return;
-    if (currentUser.role === 'admin') {
-      directCompanyUpdate(companyData, currentUser);
-    } else {
-      requestCompanyChange('create', companyData, currentUser);
-    }
+    saveCompany(companyData, currentUser);
     setIsCreateOpen(false);
   };
 
@@ -62,29 +60,8 @@ export default function Companies() {
 
   const handleOccupy = (company: Company) => {
     if (!currentUser) return;
-    const name = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email;
+    const name = (currentUser.fullName || '').trim() || currentUser.email;
     occupyCompany(company.id, currentUser.id, name);
-  };
-
-  const handleCreateUser = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      const payload: CreateUserInput = {
-        firstName: userForm.firstName.trim(),
-        lastName: userForm.lastName.trim(),
-        email: userForm.email.trim(),
-        password: userForm.password,
-        bestEmail: userForm.email.trim(),
-        role: 'user',
-      };
-      createUserByAdmin(payload);
-      setUserForm(EMPTY_USER);
-      setUserError('');
-      setIsUserOpen(false);
-    } catch (error) {
-      logHandledError(error, 'Create user rejected');
-      setUserError(error instanceof Error ? error.message : 'Не удалось создать пользователя');
-    }
   };
 
   return (
@@ -97,16 +74,6 @@ export default function Companies() {
           </p>
         </div>
         <div className="page-actions">
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => {
-              setUserError('');
-              setIsUserOpen(true);
-            }}
-          >
-            Добавить юзера
-          </button>
           <button type="button" className="add-company-btn" onClick={() => setIsCreateOpen(true)}>
             <span className="plus-icon" aria-hidden="true">+</span>
             Создать компанию
@@ -122,7 +89,7 @@ export default function Companies() {
       <CompanyTable
         companies={filtered}
         totalCount={storedCompanies.length}
-        onOpenCompany={(c) => setSelectedCompanyId(c.id)}
+        onOpenCompany={(c) => openCompany(c.id)}
         onOccupy={handleOccupy}
         onResetFilters={() => setFilters(EMPTY_FILTERS)}
       />
@@ -138,48 +105,10 @@ export default function Companies() {
         </div>
       </Modal>
 
-      <Modal isOpen={isUserOpen} onClose={() => setIsUserOpen(false)} title="Добавить юзера" className="modal-edit">
-        <form className="create-user-form" onSubmit={handleCreateUser}>
-          {userError && <p className="auth-error">{userError}</p>}
-          <input
-            type="text"
-            placeholder="Имя"
-            value={userForm.firstName}
-            onChange={(event) => setUserForm({ ...userForm, firstName: event.target.value })}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Фамилия"
-            value={userForm.lastName}
-            onChange={(event) => setUserForm({ ...userForm, lastName: event.target.value })}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={userForm.email}
-            onChange={(event) => setUserForm({ ...userForm, email: event.target.value })}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Пароль"
-            value={userForm.password}
-            onChange={(event) => setUserForm({ ...userForm, password: event.target.value })}
-            required
-          />
-          <div className="form-actions">
-            <button type="button" className="btn-ghost" onClick={() => setIsUserOpen(false)}>Отмена</button>
-            <button type="submit" className="btn-primary">Создать</button>
-          </div>
-        </form>
-      </Modal>
-
       <CompanyCard
         company={selectedCompany}
         isOpen={!!selectedCompany}
-        onClose={() => setSelectedCompanyId(null)}
+        onClose={closeCompany}
         industriesCatalog={industries}
         onAddIndustry={handleAddIndustry}
         onSaved={() => {}}

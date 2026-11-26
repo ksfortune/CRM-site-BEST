@@ -12,8 +12,8 @@ export interface User {
   id: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  /** ФИО одним полем */
+  fullName: string;
   bestEmail: string;
   phone: string;
   role: UserRole;
@@ -30,8 +30,8 @@ export interface SocialChannel {
 
 export interface Contact {
   id: string;
+  /** ФИО представителя одним полем */
   name: string;
-  nickname: string;
   phone: string;
   channels: SocialChannel[];
 }
@@ -84,26 +84,31 @@ export interface Comment {
   createdAt: string;
 }
 
-export type ChangeRequestType = 'create' | 'update' | 'delete';
+export type ActivityAction = 'create' | 'update' | 'delete';
 
-export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+export interface ActivityChange {
+  /** Что изменилось, например «Название» или «Представитель «Иван Иванов»: Телефон» */
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
 
-export interface ChangeRequest {
+/** Запись журнала: кто, что и когда изменил в компании. */
+export interface ActivityLogEntry {
   id: string;
-  type: ChangeRequestType;
-  companyId: string | null;
-  targetCompany: Company | null;
-  requestedBy: string;
-  requestedByName: string;
-  status: ChangeRequestStatus;
+  action: ActivityAction;
+  companyId: string;
+  companyName: string;
+  userId: string;
+  userName: string;
+  changes: ActivityChange[];
   createdAt: string;
 }
 
 export interface CreateUserInput {
   email?: string;
   password?: string;
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
   bestEmail?: string;
   phone?: string;
   role?: UserRole;

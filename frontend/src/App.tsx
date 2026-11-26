@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Companies from './pages/Companies';
 import Profile from './pages/Profile';
 import AdminPanel from './pages/AdminPanel';
+import { getInitials } from './utils/names';
 
 function NavBar() {
   const { currentUser, logout } = useAuth();
@@ -16,10 +17,6 @@ function NavBar() {
   const navigate = useNavigate();
 
   if (!currentUser) return null;
-
-  const getInitials = () => {
-    return `${currentUser.firstName?.[0] || ''}${currentUser.lastName?.[0] || ''}`.toUpperCase();
-  };
 
   const handleLogout = () => {
     logout();
@@ -43,15 +40,18 @@ function NavBar() {
               Отдел
             </Link>
           )}
-          <Link to="/profile" className={navClass('/profile')} aria-current={navCurrent('/profile')}>
-            Профиль
-          </Link>
         </nav>
         <div className="topbar-side">
-          <span className="user-chip">
-            <span className="chip-avatar" aria-hidden="true">{getInitials() || 'К'}</span>
-            <span className="user-chip-name">{currentUser.firstName} {currentUser.lastName}</span>
-          </span>
+          <Link
+            to="/profile"
+            className={`user-chip${location.pathname.startsWith('/profile') ? ' active' : ''}`}
+            aria-current={navCurrent('/profile')}
+            aria-label="Открыть профиль"
+            title="Открыть профиль"
+          >
+            <span className="chip-avatar" aria-hidden="true">{getInitials(currentUser.fullName) || 'К'}</span>
+            <span className="user-chip-name">{currentUser.fullName}</span>
+          </Link>
           <button type="button" className="logout-btn" onClick={handleLogout}>
             Выйти
           </button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
-import CompanyForm from './CompanyForm';
+import CompanyForm, { type CompanyFormMode } from './CompanyForm';
 import CommentSection from './CommentSection';
 import ConfirmModal from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,13 +35,14 @@ export default function CompanyCard({
   const { currentUser } = useAuth();
   const {
     getCommentsForCompany,
-    directCompanyUpdate,
-    requestCompanyChange,
+    saveCompany,
+    deleteCompany,
     occupyCompany,
     releaseCompany,
     findUserById,
   } = useData();
-  const [editing, setEditing] = useState(false);
+  // Какую часть карточки сейчас редактируем: данные компании или список представителей
+  const [editMode, setEditMode] = useState<Exclude<CompanyFormMode, 'full'> | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -50,7 +51,7 @@ export default function CompanyCard({
   const comments = getCommentsForCompany(company.id);
   const occupant = company.occupiedBy ? findUserById(company.occupiedBy) : null;
   const occupantName = occupant
-    ? `${occupant.firstName} ${occupant.lastName}`.trim()
+    ? occupant.fullName.trim()
     : company.occupiedByName || '';
   const selectedContact = (company.contacts || []).find((c) => c.id === selectedContactId);
 
@@ -60,11 +61,7 @@ export default function CompanyCard({
   const isBusyByOther = company.occupiedBy && !isMine;
 
   const handleOccupy = () => {
-    occupyCompany(
-      company.id,
-      currentUser.id,
-      `${currentUser.firstName} ${currentUser.lastName}`
-    );
+    occupyCompany(company.id, currentUser.id, currentUser.fullName);
   };
 
   const handleRelease = () => {
@@ -72,36 +69,19 @@ export default function CompanyCard({
   };
 
   const handleTakeOver = () => {
-    occupyCompany(
-      company.id,
-      currentUser.id,
-      `${currentUser.firstName} ${currentUser.lastName}`
-    );
+    occupyCompany(company.id, currentUser.id, currentUser.fullName);
   };
 
   const handleSave = (data: CompanyDraft) => {
-    const payload = { ...company, ...data };
-    if (currentUser.role === 'admin') {
-      directCompanyUpdate(payload, currentUser);
-      setEditing(false);
-      onSaved?.();
-    } else {
-      requestCompanyChange('update', payload, currentUser);
-      alert('Запрос на изменение отправлен администратору');
-      setEditing(false);
-    }
+    saveCompany({ ...company, ...data }, currentUser);
+    setEditMode(null);
+    onSaved?.();
   };
 
   const handleDelete = () => {
-    if (currentUser.role === 'admin') {
-      directCompanyUpdate(company, currentUser, true);
-      onClose();
-      onSaved?.();
-    } else {
-      requestCompanyChange('delete', company, currentUser);
-      alert('Запрос на удаление отправлен администратору');
-      onClose();
-    }
+    deleteCompany(company, currentUser);
+    onClose();
+    onSaved?.();
   };
 
   return (
@@ -109,17 +89,24 @@ export default function CompanyCard({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={editing ? 'Изменения данных компании' : company.name}
+        title={
+          editMode === 'company'
+            ? 'Изменение данных компании'
+            : editMode === 'contacts'
+              ? `Представители: ${company.name}`
+              : company.name
+        }
         size="lg"
-        className={editing ? 'modal-edit' : 'modal-company'}
+        className={editMode ? 'modal-edit' : 'modal-company'}
       >
-        {editing ? (
+        {editMode ? (
           <div className="company-edit-block">
             <CompanyForm
+              mode={editMode}
               initialData={company}
               industriesCatalog={industriesCatalog}
               onAddIndustry={onAddIndustry}
-              onCancel={() => setEditing(false)}
+              onCancel={() => setEditMode(null)}
               onSubmit={handleSave}
             />
           </div>
@@ -188,7 +175,7 @@ export default function CompanyCard({
                 <div className="sheet-divider" />
                 <div className="reps-head">
                   <h4>Представители</h4>
-                  <button type="button" className="reps-add" onClick={() => setEditing(true)} aria-label="Добавить представителя">
+                  <button type="button" className="reps-add" onClick={() => setEditMode('contacts')} aria-label="Добавить и изменить представителей">
                     + Добавить
                   </button>
                 </div>
@@ -242,7 +229,7 @@ export default function CompanyCard({
               </div>
             </div>
             <div className="company-card-actions">
-              <button type="button" className="sheet-edit" onClick={() => setEditing(true)}>
+              <button type="button" className="sheet-edit" onClick={() => setEditMode('company')}>
                 Изменить данные
               </button>
               <button type="button" className="text-action danger" onClick={() => setConfirmDelete(true)}>
