@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, MetaData, Table, Column, String, Date, Integer, LargeBinary, select
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-# from .models import User, Vacation, AuthEntry, Department
-
+from .models import Users, Company
 
 class Database:
     def __init__(self, db_name, user, password):
@@ -29,9 +28,7 @@ class Database:
         metadata = MetaData()
 
         # Создаём таблицы здесь
-        # ...
-        # пример:
-        # создание таблицы пользователей
+        # пример: создание таблицы пользователей
         self.users_table = Table('users', metadata,
                                  Column('email', String, primary_key=True, nullable=False),
                                  Column('name', String, nullable=False),
@@ -41,14 +38,34 @@ class Database:
                                  Column('position', String),
                                  Column('image', LargeBinary))
 
-        # Инициализируем таблицы
+        self.companies_table = Table('companies', metadata,
+                                     Column('id', Integer, primary_key=True, nullable=False),
+                                     Column('name', String, nullable=False),
+                                     Column('status', String, nullable=False),
+                                     Column('occupied_by', String, foreign_key='users.id'),
+                                     Column('created_by', String, foreign_key='users.id', nullable=False),
+                                     Column('updated_by', String, foreign_key='users.id', nullable=False),
+                                     Column('created_at', Date, nullable=False),
+                                     Column('updated_at', Date, nullable=False),
+                                     Column('deleted_at', Date))
+
         metadata.create_all(engine)
         self.engine = engine
 
 
     # Дальше добавляем всякие методы уже для БД
-    def add_company(self):
-        pass
+    def add_company(self, name):
+        new_company = Company(
+            name=name
+        )
+        with Session(self.engine) as session:
+            session.add(new_company)
+            session.commit()
 
     def add_contact_to_company(self):
         pass
+
+    def get_companies(self):
+        with Session(self.engine) as session:
+            companies = session.query(Company).all()
+            return companies
